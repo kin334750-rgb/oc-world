@@ -4,16 +4,17 @@
     
     const CONFIG = {
         PAGE_SIZE: 12,
+        API_BASE_URL: '/api',
         TAGS: ['魔法', '热血', '治愈', '腹黑', '温柔', '高冷', '傲娇', '软萌', '御姐', '正太', 'LOLI', '兽耳', '机械', '异世界', '校园', '奇幻', '科幻', '古风'],
         EMOJIS: ['😀','😎','😍','🤔','😢','😡','😭','🥰','🤯','😇','👻','👽','🤖','💀','🎭','🔥','✨','💫','🌟','⭐️','❤️','💔','👍','👎','🙏','💪','🎉','🎊','🏆','🎯','💡'],
         SECURITY_QUESTIONS: ['我最好的朋友是谁？', '我最喜欢的颜色是什么？', '我的第一只宠物叫什么？', '我出生在哪个城市？', '我最喜欢的食物是什么？', '我最喜欢的动漫角色是谁？'],
-        SUPABASE_URL: 'https://aygduhidyfkantqjzfec.supabase.co',
-        SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5Z2R1aGlkeWZrYW50cWp6ZmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDgzMzcsImV4cCI6MjA4Njc4NDMzN30.nMEWXv6lnorwU2swGgkKMAAnljjQpiGW6BnGZ6tOBq8',
-        CURRENT_USER_KEY: 'oc_current_user'
+        CURRENT_USER_KEY: 'oc_current_user',
+        TOKEN_KEY: 'oc_auth_token'
     };
     
     let currentUser = null, currentOC = null, currentChatFriend = null, currentViewingUser = null, currentPage = 1, totalPages = 1, currentMode = 'all';
     let dbData = { users: [], worlds: [], ocs: [], comments: [], favorites: [], follows: { following: [], followers: [] }, notifications: [], messages: [], dmMessages: [], friends: [], reports: [], user_settings: {} };
+    let authToken = null;
     
     function $(id) { return document.getElementById(id); }
     function $$(sel) { return document.querySelectorAll(sel); }
@@ -21,29 +22,50 @@
     function setItem(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
     function genId(prefix) { return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
     
+    function getToken() {
+        return getItem(CONFIG.TOKEN_KEY);
+    }
+    
+    function getAuthHeaders() {
+        const token = getToken();
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+    
     async function supabaseFetch(table, query = '') {
-        const url = `${CONFIG.SUPABASE_URL}/rest/v1/${table}${query}`;
-        const res = await fetch(url, { headers: { 'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY, 'Content-Type': 'application/json' } });
+        const url = `${CONFIG.API_BASE_URL}/${table}${query}`;
+        const res = await fetch(url, { headers: { ...getAuthHeaders() } });
         return res.json();
     }
     
     async function supabaseInsert(table, data) {
-        await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/${table}`, { method: 'POST', headers: { 'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' }, body: JSON.stringify(data) });
+        await fetch(`${CONFIG.API_BASE_URL}/${table}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(data) });
     }
     
     async function supabaseUpdate(table, data, eq) {
-        await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/${table}?${eq}`, { method: 'PATCH', headers: { 'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        await fetch(`${CONFIG.API_BASE_URL}/${table}?${eq}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(data) });
     }
     
     async function supabaseDelete(table, eq) {
-        await fetch(`${CONFIG.SUPABASE_URL}/rest/v1/${table}?${eq}`, { method: 'DELETE', headers: { 'apikey': CONFIG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CONFIG.SUPABASE_KEY } });
+        await fetch(`${CONFIG.API_BASE_URL}/${table}?${eq}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
     }
     
     async function loadAllData() {
         try {
-            const [users, worlds, ocs, comments, favorites, follows, notifications, messages, dmMessages, friends, reports, settings] = await Promise.all([
-                supabaseFetch('users'), supabaseFetch('worlds'), supabaseFetch('ocs', '?order=created_at.desc'), supabaseFetch('comments', '?order=created_at.desc'), supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'), supabaseFetch('messages', '?order=created_at.desc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.desc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
+            authToken = getToken();
+            const [users, worlds, ocs, comments] = await Promise.all([
+                supabaseFetch('users'), supabaseFetch('worlds'), supabaseFetch('ocs', '?order=created_at.desc'), supabaseFetch('comments', '?order=created_at.desc')
             ]);
+            
+            let favorites = [], follows = [], notifications = [], messages = [], dmMessages = [], friends = [], reports = [], settings = [];
+            
+            if (authToken) {
+                try {
+                    [favorites, follows, notifications, messages, dmMessages, friends, reports, settings] = await Promise.all([
+                        supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'), supabaseFetch('messages', '?order=created_at.desc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.desc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
+                    ]);
+                } catch (e) { console.log('需要登录获取更多数据'); }
+            }
+            
             const settingsMap = {}; (settings || []).forEach(s => settingsMap[s.user_id] = s);
             dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], dmMessages: dmMessages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap };
         } catch (e) { console.error('加载失败:', e); }
@@ -62,9 +84,21 @@
     function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
     
     // 游客登录
-    function doGuestLogin() {
-        const guestUser = { id: 'guest_' + Date.now(), nickname: '游客', email: '', password: '', role: 'guest', bio: '', avatar: '', gender: '', birthday: '', location: '', website: '', github: '', twitter: '', bg_image: '', sq1: '', sa1: '', sq2: '', sa2: '', created_at: new Date().toISOString() };
-        setItem(CONFIG.CURRENT_USER_KEY, guestUser); currentUser = guestUser;
+    async function doGuestLogin() {
+        try {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/auth/guest`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+            const data = await res.json();
+            if (data.user) {
+                setItem(CONFIG.CURRENT_USER_KEY, data.user);
+                setItem(CONFIG.TOKEN_KEY, data.token);
+                authToken = data.token;
+                currentUser = data.user;
+            }
+        } catch (e) {
+            const guestUser = { id: 'guest_' + Date.now(), nickname: '游客', email: '', password: '', role: 'guest', bio: '', avatar: '', gender: '', birthday: '', location: '', website: '', github: '', twitter: '', bg_image: '', sq1: '', sa1: '', sq2: '', sa2: '', created_at: new Date().toISOString() };
+            setItem(CONFIG.CURRENT_USER_KEY, guestUser);
+            currentUser = guestUser;
+        }
         applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
         showToast('以游客身份进入', 'info');
     }
@@ -72,12 +106,24 @@
     async function doLogin() {
         const email = $('login-email').value.trim(); const password = $('login-password').value;
         if (!email || !password) { showToast('请输入邮箱和密码', 'error'); return; }
-        const user = dbData.users.find(u => u.email === email && u.password === password);
-        if (!user) { showToast('邮箱或密码错误', 'error'); return; }
+        try {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            if (data.user) {
+                setItem(CONFIG.CURRENT_USER_KEY, data.user);
+                setItem(CONFIG.TOKEN_KEY, data.token);
+                authToken = data.token;
+                currentUser = data.user;
+            }
+        } catch (e) { showToast('登录失败', 'error'); return; }
         if ($('remember-me').checked) localStorage.setItem('remember_email', email);
-        setItem(CONFIG.CURRENT_USER_KEY, user); currentUser = user;
         applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
-        showToast('欢迎回来，' + (user.nickname || user.email), 'success');
+        showToast('欢迎回来，' + (currentUser.nickname || currentUser.email), 'success');
     }
     
     // 账号找回
@@ -120,18 +166,30 @@
         if (!isValidEmail(email)) { showToast('请输入有效的邮箱格式', 'error'); return; }
         if (password.length < 6) { showToast('密码至少6位', 'error'); return; }
         if (password !== password2) { showToast('两次密码不一致', 'error'); return; }
-        if (dbData.users.find(u => u.email === email)) { showToast('该邮箱已被注册', 'error'); return; }
         
-        const newUser = { id: genId('u'), nickname, email, password, role: 'author', bio: '', avatar: '', gender: '', birthday: '', location: '', website: '', github: '', twitter: '', bg_image: '', sq1: '', sa1: '', sq2: '', sa2: '', created_at: new Date().toISOString() };
-        await supabaseInsert('users', newUser); await supabaseInsert('user_settings', { user_id: newUser.id, notifications_enabled: 1 });
-        dbData.users.push(newUser); dbData.user_settings[newUser.id] = { user_id: newUser.id, notifications_enabled: 1 };
-        setItem(CONFIG.CURRENT_USER_KEY, newUser); currentUser = newUser;
+        try {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nickname, email, password })
+            });
+            const data = await res.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            if (data.user) {
+                setItem(CONFIG.CURRENT_USER_KEY, data.user);
+                setItem(CONFIG.TOKEN_KEY, data.token);
+                authToken = data.token;
+                currentUser = data.user;
+                dbData.users.push(data.user);
+                dbData.user_settings[data.user.id] = { user_id: data.user.id, notifications_enabled: 1 };
+            }
+        } catch (e) { showToast('注册失败', 'error'); return; }
         applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
         showToast('注册成功！欢迎成为作者', 'success');
         setTimeout(() => { showChatView(); showToast('你已自动进入作者聊天平台', 'info'); }, 1000);
     }
     
-    function doLogout() { localStorage.removeItem(CONFIG.CURRENT_USER_KEY); currentUser = null; showView('auth'); }
+    function doLogout() { localStorage.removeItem(CONFIG.CURRENT_USER_KEY); localStorage.removeItem(CONFIG.TOKEN_KEY); currentUser = null; authToken = null; showView('auth'); }
     
     async function deleteAccount() {
         if (!currentUser || currentUser.role === 'guest') return;
@@ -649,6 +707,22 @@
     async function init() {
         await loadAllData();
         currentUser = getCurrentUser();
+        authToken = getToken();
+        
+        if (authToken && currentUser && currentUser.role !== 'guest') {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (res.ok) {
+                    const userData = await res.json();
+                    if (userData.id) {
+                        currentUser = userData;
+                        setItem(CONFIG.CURRENT_USER_KEY, userData);
+                    }
+                }
+            } catch (e) { console.log('自动登录失败'); }
+        }
         
         if (!currentUser) {
             renderOClist(); renderQuickTags(); showView('auth');
