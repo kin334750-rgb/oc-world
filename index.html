@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO -->
+    <title>OC世界 - 原创角色交流平台 | OC角色库 | 同人创作</title>
+    <meta name="description" content="OC世界是一个原创角色(OC)交流平台，作者可以创建、分享自己的OC角色，展示背景设定，构建世界观。">
+    <meta name="keywords" content="OC, 原创角色, 同人, 角色创作, 世界观, 二次创作, 角色设计, 奇幻, 魔法">
+    <meta name="robots" content="index, follow">
+    
+    <meta property="og:title" content="OC世界 - 原创角色交流平台">
+    <meta property="og:description" content="创建、分享你的OC角色">
+    <meta property="og:type" content="website">
+    <link rel="canonical" href="https://kin334750-rgb.github.io/oc-world/">
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎭</text></svg>">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <div id="auth-view" class="view">
+            <div class="auth-container">
+                <div class="auth-header">
+                    <h1>OC世界</h1>
+                    <p class="subtitle">Original Character World</p>
+                </div>
+                <div id="login-form" class="auth-form active">
+                    <h2>登录</h2>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" id="login-email" placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="login-password" placeholder="请输入密码">
+                    </div>
+                    <div class="form-options">
+                        <label><input type="checkbox" id="remember-me"> 记住我</label>
+                    </div>
+                    <button id="login-btn" class="primary-btn">登录</button>
+                    <p class="auth-switch">还没有账号? <a href="#" id="show-register">立即注册</a></p>
+                </div>
+                <div id="register-form" class="auth-form">
+                    <h2>注册</h2>
+                    <div class="form-group">
+                        <label>昵称</label>
+                        <input type="text" id="reg-nickname" placeholder="显示名称" maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label>邮箱</label>
+                        <input type="email" id="reg-email" placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="reg-password" placeholder="至少6位" minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>确认密码</label>
+                        <input type="password" id="reg-password2" placeholder="再次输入">
+                    </div>
+                    <div class="form-group">
+                        <label>角色</label>
+                        <div class="role-select">
+                            <label class="role-option">
+                                <input type="radio" name="reg-role" value="author" checked>
+                                <div class="role-card"><span>✍️</span><span>作者</span></div>
+                            </label>
+                            <label class="role-option">
+                                <input type="radio" name="reg-role" value="visitor">
+                                <div class="role-card"><span>👀</span><span>游客</span></div>
+                            </label>
+                        </div>
+                    </div>
+                    <button id="register-btn" class="primary-btn">注册</button>
+                    <p class="auth-switch">已有账号? <a href="#" id="show-login">立即登录</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="hall-view" class="view">
+            <header class="header">
+                <div class="header-left">
+                    <div class="logo">OC世界</div>
+                    <nav class="nav">
+                        <a href="#" class="nav-item active" data-page="hall">🏠 大厅</a>
+                        <a href="#" class="nav-item" data-page="trending">🔥 热门</a>
+                        <a href="#" class="nav-item" data-page="world">🌍 世界观</a>
+                    </nav>
+                </div>
+                <div class="header-right">
+                    <button class="theme-toggle" id="theme-toggle">🌙</button>
+                    <div class="notification-bell" id="notification-bell">🔔<span class="badge" id="notif-badge">0</span></div>
+                    <div class="user-menu">
+                        <div class="user-avatar" id="user-avatar">👤</div>
+                        <div class="user-dropdown" id="user-dropdown">
+                            <div class="dropdown-header">
+                                <span class="dropdown-nickname" id="dropdown-nickname"></span>
+                                <span class="dropdown-role" id="dropdown-role"></span>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item" data-action="profile">👤 个人资料</a>
+                            <a href="#" class="dropdown-item" data-action="my-ocs">🎭 我的OC</a>
+                            <a href="#" class="dropdown-item" data-action="favorites">❤️ 收藏夹</a>
+                            <a href="#" class="dropdown-item" data-action="settings">⚙️ 设置</a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" class="dropdown-item" data-action="logout">🚪 退出</a>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <div class="hall-toolbar">
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="搜索OC、作者、标签...">
+                    <select id="search-type"><option value="all">全部</option><option value="name">名称</option><option value="author">作者</option><option value="tag">标签</option></select>
+                    <button id="search-btn">🔍</button>
+                </div>
+                <div class="toolbar-right">
+                    <select id="sort-by"><option value="latest">最新</option><option value="popular">热门</option><option value="name">名称</option></select>
+                    <label><input type="checkbox" id="filter-my-ocs"> 我的</label>
+                </div>
+            </div>
+            
+            <div class="hall-content">
+                <aside class="sidebar">
+                    <div class="sidebar-section">
+                        <h3>快速筛选</h3>
+                        <div class="filter-tags" id="quick-tags"></div>
+                    </div>
+                    <div class="sidebar-section">
+                        <button id="create-oc-btn" class="primary-btn full-width">➕ 创建OC</button>
+                    </div>
+                    <div class="sidebar-section">
+                        <button id="my-requests-btn" class="secondary-btn full-width">📋 我的申请</button>
+                    </div>
+                    <div class="sidebar-section">
+                        <button id="create-world-btn" class="secondary-btn full-width">🌍 创建世界观</button>
+                    </div>
+                </aside>
+                <main class="oc-grid" id="oc-grid"></main>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+
+        <div id="detail-view" class="view">
+            <header class="header">
+                <button id="back-to-hall" class="back-btn">← 返回</button>
+                <div class="header-right">
+                    <button class="icon-btn" id="favorite-btn">❤️</button>
+                    <button class="icon-btn" id="share-btn">📤</button>
+                </div>
+            </header>
+            <div class="detail-content">
+                <div class="detail-main">
+                    <div class="oc-display">
+                        <div class="oc-image" id="oc-image"></div>
+                        <div class="oc-info">
+                            <div class="oc-header">
+                                <h2 id="oc-name"></h2>
+                                <div class="oc-actions">
+                                    <button class="edit-btn" id="edit-oc-btn">✏️</button>
+                                    <button class="edit-btn" id="delete-oc-btn">🗑️</button>
+                                </div>
+                            </div>
+                            <p class="oc-author">作者: <span id="oc-author"></span></p>
+                            <div class="oc-stats">
+                                <span>👁️ <span id="oc-views">0</span></span>
+                                <span>❤️ <span id="oc-likes">0</span></span>
+                                <span>💬 <span id="oc-comments">0</span></span>
+                            </div>
+                            <div class="oc-tags" id="oc-tags"></div>
+                        </div>
+                    </div>
+                    <div class="oc-background"><h3>📖 背景设定</h3><div id="oc-description"></div></div>
+                    <div class="oc-world"><h3>🌍 世界观</h3><div id="oc-world-list"></div></div>
+                    <div class="oc-relations"><h3>🔗 关联OC</h3><div id="related-ocs"></div><button id="add-related-btn" class="secondary-btn">申请关联</button></div>
+                </div>
+                <div class="detail-sidebar">
+                    <div class="author-card">
+                        <h4>作者</h4>
+                        <div class="author-info">
+                            <div class="author-avatar" id="author-avatar">👤</div>
+                            <div class="author-detail"><span class="author-name" id="author-name"></span><span id="author-oc-count"></span></div>
+                        </div>
+                        <button class="follow-btn" id="follow-author">+ 关注</button>
+                    </div>
+                    <div class="comments-section">
+                        <h3>💬 评论 <span id="comment-count">(0)</span></h3>
+                        <div id="comments-list"></div>
+                        <div class="comment-form">
+                            <textarea id="comment-input" placeholder="发表看法..."></textarea>
+                            <button id="submit-comment" class="primary-btn">发表</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="profile-view" class="view">
+            <header class="header"><button id="back-from-profile" class="back-btn">← 返回</button><h2>个人资料</h2></header>
+            <div class="profile-content">
+                <div class="profile-header">
+                    <div class="profile-avatar-section"><div class="profile-avatar" id="profile-avatar">👤</div></div>
+                    <div class="profile-info">
+                        <h2 id="profile-nickname"></h2><p id="profile-email"></p><p id="profile-role"></p>
+                        <p class="profile-stats"><span>OC: <strong id="profile-oc-count">0</strong></span><span>粉丝: <strong id="profile-fans">0</strong></span></p>
+                    </div>
+                </div>
+                <div class="profile-form">
+                    <h3>编辑资料</h3>
+                    <div class="form-group"><label>昵称</label><input type="text" id="edit-nickname"></div>
+                    <div class="form-group"><label>简介</label><textarea id="edit-bio"></textarea></div>
+                    <button id="save-profile-btn" class="primary-btn">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="notifications-view" class="view">
+            <header class="header"><button id="back-from-notifs" class="back-btn">← 返回</button><h2>通知</h2></header>
+            <div class="notifications-list" id="notifications-list"></div>
+        </div>
+
+        <div id="favorites-view" class="view">
+            <header class="header"><button id="back-from-favorites" class="back-btn">← 返回</button><h2>收藏</h2></header>
+            <div class="favorites-grid" id="favorites-grid"></div>
+        </div>
+
+        <div id="settings-view" class="view">
+            <header class="header"><button id="back-from-settings" class="back-btn">← 返回</button><h2>设置</h2></header>
+            <div class="settings-content">
+                <div class="settings-section">
+                    <h3>修改密码</h3>
+                    <div class="form-group"><input type="password" id="old-password" placeholder="当前密码"></div>
+                    <div class="form-group"><input type="password" id="new-password" placeholder="新密码"></div>
+                    <button id="change-password-btn" class="secondary-btn">修改</button>
+                </div>
+                <div class="settings-section">
+                    <h3>主题</h3>
+                    <label><input type="radio" name="theme" value="light"> 浅色</label>
+                    <label><input type="radio" name="theme" value="dark"> 深色</label>
+                </div>
+                <div class="settings-section">
+                    <button id="clear-data-btn" class="danger-btn">清空数据</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="world-view" class="view">
+            <header class="header"><button id="back-from-world" class="back-btn">← 返回</button><h2>世界观</h2><button id="create-world-modal-btn" class="primary-btn">+</button></header>
+            <div class="world-grid" id="world-grid"></div>
+        </div>
+
+        <div id="oc-modal" class="modal">
+            <div class="modal-content">
+                <h2 id="modal-title">创建OC</h2>
+                <form id="oc-form">
+                    <div class="form-group"><label>名称 *</label><input type="text" id="oc-name-input" required></div>
+                    <div class="form-group"><label>图片URL</label><input type="url" id="oc-image-input"></div>
+                    <div class="form-group"><label>世界观</label><select id="oc-world-select"><option value="">无</option></select></div>
+                    <div class="form-group"><label>背景设定</label><textarea id="oc-desc-input" rows="6"></textarea></div>
+                    <div class="form-group"><label>标签</label><input type="text" id="oc-tags-input" placeholder="用逗号分隔"></div>
+                    <div class="form-actions">
+                        <button type="button" id="cancel-oc-btn" class="secondary-btn">取消</button>
+                        <button type="submit" class="primary-btn">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="world-modal" class="modal">
+            <div class="modal-content">
+                <h2>创建世界观</h2>
+                <form id="world-form">
+                    <div class="form-group"><label>名称 *</label><input type="text" id="world-name-input" required></div>
+                    <div class="form-group"><label>简介</label><textarea id="world-desc-input"></textarea></div>
+                    <div class="form-actions">
+                        <button type="button" id="cancel-world-btn" class="secondary-btn">取消</button>
+                        <button type="submit" class="primary-btn">创建</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="related-modal" class="modal">
+            <div class="modal-content">
+                <h2>申请关联</h2>
+                <div class="form-group"><label>OC名称</label><input type="text" id="related-oc-name"></div>
+                <div class="form-group"><label>理由</label><textarea id="related-reason"></textarea></div>
+                <div class="form-actions">
+                    <button id="cancel-related-btn" class="secondary-btn">取消</button>
+                    <button id="submit-related-btn" class="primary-btn">发送</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="requests-modal" class="modal">
+            <div class="modal-content modal-large">
+                <h2>申请管理</h2>
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="received">收到的</button>
+                    <button class="tab-btn" data-tab="sent">发出的</button>
+                </div>
+                <div id="requests-content"></div>
+            </div>
+        </div>
+
+        <div id="share-modal" class="modal">
+            <div class="modal-content">
+                <h2>分享</h2>
+                <div class="share-content">
+                    <input type="text" id="share-link" readonly>
+                    <button id="copy-link-btn" class="primary-btn">复制</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="confirm-modal" class="modal">
+            <div class="modal-content modal-small">
+                <h2 id="confirm-title">确认</h2>
+                <p id="confirm-message"></p>
+                <div class="form-actions">
+                    <button id="confirm-cancel" class="secondary-btn">取消</button>
+                    <button id="confirm-ok" class="primary-btn">确认</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast-container"></div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
