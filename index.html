@@ -38,42 +38,31 @@
                     </div>
                     <div class="form-options">
                         <label><input type="checkbox" id="remember-me"> 记住我</label>
+                        <a href="#" id="recover-btn" style="color:var(--primary)">忘记密码？</a>
                     </div>
                     <button id="login-btn" class="primary-btn">登录</button>
+                    <button id="guest-btn" class="secondary-btn" style="margin-top:10px">👀 游客进入</button>
                     <p class="auth-switch">还没有账号? <a href="#" id="show-register">立即注册</a></p>
                 </div>
                 <div id="register-form" class="auth-form">
                     <h2>注册</h2>
                     <div class="form-group">
-                        <label>昵称</label>
-                        <input type="text" id="reg-nickname" placeholder="显示名称" maxlength="20">
+                        <label>昵称 *</label>
+                        <input type="text" id="reg-nickname" placeholder="显示名称" maxlength="20" required>
                     </div>
                     <div class="form-group">
-                        <label>邮箱</label>
-                        <input type="email" id="reg-email" placeholder="your@email.com">
+                        <label>邮箱 *</label>
+                        <input type="email" id="reg-email" placeholder="your@email.com" required>
                     </div>
                     <div class="form-group">
-                        <label>密码</label>
-                        <input type="password" id="reg-password" placeholder="至少6位" minlength="6">
+                        <label>密码 *</label>
+                        <input type="password" id="reg-password" placeholder="至少6位" minlength="6" required>
                     </div>
                     <div class="form-group">
-                        <label>确认密码</label>
-                        <input type="password" id="reg-password2" placeholder="再次输入">
+                        <label>确认密码 *</label>
+                        <input type="password" id="reg-password2" placeholder="再次输入" required>
                     </div>
-                    <div class="form-group">
-                        <label>角色</label>
-                        <div class="role-select">
-                            <label class="role-option">
-                                <input type="radio" name="reg-role" value="author" checked>
-                                <div class="role-card"><span>✍️</span><span>作者</span></div>
-                            </label>
-                            <label class="role-option">
-                                <input type="radio" name="reg-role" value="visitor">
-                                <div class="role-card"><span>👀</span><span>游客</span></div>
-                            </label>
-                        </div>
-                    </div>
-                    <button id="register-btn" class="primary-btn">注册</button>
+                    <button id="register-btn" class="primary-btn">注册成为作者</button>
                     <p class="auth-switch">已有账号? <a href="#" id="show-login">立即登录</a></p>
                 </div>
             </div>
@@ -263,6 +252,48 @@
             </div>
         </div>
 
+        <div id="user-profile-view" class="view">
+            <header class="header"><button id="back-from-user-profile" class="back-btn">← 返回</button><h2>个人主页</h2></header>
+            <div class="profile-content">
+                <div class="profile-bg" id="profile-bg-image">
+                    <button id="profile-edit-btn" class="primary-btn" style="margin-top:20px">✏️ 编辑资料</button>
+                </div>
+                <div class="profile-header" style="margin-top:-50px">
+                    <div class="profile-avatar-section"><div class="profile-avatar" id="profile-avatar" style="width:100px;height:100px;font-size:3rem">👤</div></div>
+                    <div class="profile-info">
+                        <h2 id="profile-nickname"></h2>
+                        <p id="profile-email"></p>
+                        <p id="profile-role"></p>
+                        <p class="profile-bio" id="profile-bio" style="margin-top:10px;color:var(--text-secondary)"></p>
+                        <p class="profile-stats"><span>OC: <strong id="profile-oc-count">0</strong></span><span>粉丝: <strong id="profile-fans">0</strong></span></p>
+                    </div>
+                </div>
+                <div class="profile-form" id="profile-edit-form" style="display:none">
+                    <h3>编辑资料</h3>
+                    <div class="form-group"><label>昵称</label><input type="text" id="edit-nickname"></div>
+                    <div class="form-group"><label>简介</label><textarea id="edit-bio" rows="3"></textarea></div>
+                    <div class="form-group"><label>主页背景图</label><input type="url" id="edit-bg-image" placeholder="图片URL"></div>
+                    <div class="form-group"><label>性别</label><select id="edit-gender"><option value="">保密</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></div>
+                    <div class="form-group"><label>生日</label><input type="date" id="edit-birthday"></div>
+                    <div class="form-group"><label>地区</label><input type="text" id="edit-location"></div>
+                    <div class="form-group"><label>个人网站</label><input type="url" id="edit-website"></div>
+                    <div class="form-group"><label>GitHub</label><input type="text" id="edit-github"></div>
+                    <div class="form-group"><label>Twitter</label><input type="text" id="edit-twitter"></div>
+                    <hr style="margin:20px 0">
+                    <h4>安全问题（用于找回账号）</h4>
+                    <div class="form-group"><label>问题1</label><select id="edit-sq1"></select></div>
+                    <div class="form-group"><label>答案1</label><input type="text" id="edit-sa1" placeholder="答案"></div>
+                    <div class="form-group"><label>问题2</label><select id="edit-sq2"></select></div>
+                    <div class="form-group"><label>答案2</label><input type="text" id="edit-sa2" placeholder="答案"></div>
+                    <button id="save-profile-btn" class="primary-btn">保存</button>
+                </div>
+                <div class="profile-ocs" style="margin-top:30px">
+                    <h3>TA的作品</h3>
+                    <div class="oc-grid" id="profile-ocs-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="friends-view" class="view">
             <header class="header"><button id="back-from-friends" class="back-btn">← 返回</button><h2>好友</h2></header>
             <div class="friends-list" id="friends-list"></div>
@@ -409,6 +440,54 @@
                     <button id="cancel-report-btn" class="secondary-btn">取消</button>
                     <button id="submit-report-btn" class="primary-btn">提交举报</button>
                 </div>
+            </div>
+        </div>
+
+        <div id="recover-modal" class="modal">
+            <div class="modal-content">
+                <h2>🔐 找回账号</h2>
+                <p style="color:var(--text-secondary);margin-bottom:15px">通过昵称或安全问题找回账号</p>
+                <div class="form-group">
+                    <label>昵称</label>
+                    <input type="text" id="recover-nickname" placeholder="输入昵称">
+                </div>
+                <hr style="margin:15px 0">
+                <p style="color:var(--text-secondary);margin-bottom:10px">或通过安全问题</p>
+                <div class="form-group">
+                    <label>安全问题1</label>
+                    <select id="recover-sq1">
+                        <option value="">选择问题</option>
+                        <option value="我最好的朋友是谁？">我最好的朋友是谁？</option>
+                        <option value="我最喜欢的颜色是什么？">我最喜欢的颜色是什么？</option>
+                        <option value="我的第一只宠物叫什么？">我的第一只宠物叫什么？</option>
+                        <option value="我出生在哪个城市？">我出生在哪个城市？</option>
+                        <option value="我最喜欢的食物是什么？">我最喜欢的食物是什么？</option>
+                        <option value="我最喜欢的动漫角色是谁？">我最喜欢的动漫角色是谁？</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>答案</label>
+                    <input type="text" id="recover-sa1" placeholder="答案">
+                </div>
+                <div class="form-group">
+                    <label>安全问题2 (可选)</label>
+                    <select id="recover-sq2">
+                        <option value="">选择问题</option>
+                        <option value="我最好的朋友是谁？">我最好的朋友是谁？</option>
+                        <option value="我最喜欢的颜色是什么？">我最喜欢的颜色是什么？</option>
+                        <option value="我的第一只宠物叫什么？">我的第一只宠物叫什么？</option>
+                        <option value="我出生在哪个城市？">我出生在哪个城市？</option>
+                        <option value="我最喜欢的食物是什么？">我最喜欢的食物是什么？</option>
+                        <option value="我最喜欢的动漫角色是谁？">我最喜欢的动漫角色是谁？</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>答案</label>
+                    <input type="text" id="recover-sa2" placeholder="答案">
+                </div>
+                <button id="submit-recover-btn" class="primary-btn" style="width:100%">找回账号</button>
+                <div id="recover-result" style="margin-top:15px"></div>
+                <button class="secondary-btn" style="width:100%;margin-top:10px" onclick="$('recover-modal').classList.remove('active')">关闭</button>
             </div>
         </div>
 

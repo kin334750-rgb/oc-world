@@ -23,3 +23,10 @@
 .empty-state{text-align:center;padding:60px 20px;color:var(--text-secondary)}.empty-state span{font-size:4rem;display:block;margin-bottom:15px}
 #toast-container{position:fixed;top:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:10px}.toast{padding:15px 25px;background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow-lg);animation:slideIn .3s ease;max-width:350px}.toast.success{border-left:4px solid var(--success)}.toast.error{border-left:4px solid var(--error)}.toast.warning{border-left:4px solid var(--warning)}.toast.info{border-left:4px solid var(--primary)}@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @media(max-width:900px){.detail-content{flex-direction:column}.detail-sidebar{width:100%}.oc-display{flex-direction:column;align-items:center;text-align:center}.oc-tags{justify-content:center}}@media(max-width:768px){.hall-content{flex-direction:column}.sidebar{width:100%}.header-left{gap:15px}.nav{display:none}.profile-header{flex-direction:column;align-items:center;text-align:center}}
+
+/* 可点击作者名 */
+.clickable-author{cursor:pointer;color:var(--primary)}.clickable-author:hover{text-decoration:underline}
+
+/* 用户主页 */
+.profile-bg{height:200px;background:linear-gradient(135deg,#667eea,#764ba2);background-size:cover;background-position:center;border-radius:var(--radius) var(--radius) 0 0;position:relative}
+.profile-content .profile-header{margin-top:-50px;position:relative;z-index:1}
