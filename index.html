@@ -255,7 +255,10 @@
                     <label><input type="radio" name="theme" value="dark"> 深色</label>
                 </div>
                 <div class="settings-section">
-                    <button id="clear-data-btn" class="danger-btn">清空数据</button>
+                    <button id="clear-data-btn" class="secondary-btn">清空本地数据</button>
+                </div>
+                <div class="settings-section">
+                    <button id="delete-account-btn" class="danger-btn">删除账户</button>
                 </div>
             </div>
         </div>
@@ -272,6 +275,34 @@
                 <div class="chat-input-area">
                     <input type="text" id="chat-input" placeholder="发送消息... (仅作者可发言)">
                     <button id="send-chat-btn" class="primary-btn">发送</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dm-chat-view" class="view">
+            <header class="header"><button id="back-from-dm-chat" class="back-btn">← 返回</button><h2 id="dm-chat-title">私信聊天</h2></header>
+            <div class="chat-container">
+                <div class="chat-messages" id="dm-messages"></div>
+                <div class="chat-input-area">
+                    <button class="secondary-btn" id="show-emoji-btn" onclick="showEmojiPicker()">😀</button>
+                    <button class="secondary-btn" id="send-image-btn">🖼️</button>
+                    <input type="text" id="dm-input" placeholder="发送私信...">
+                    <button id="send-dm-btn" class="primary-btn">发送</button>
+                </div>
+                <div id="dm-emoji-area"></div>
+            </div>
+        </div>
+
+        <div id="dm-image-modal" class="modal">
+            <div class="modal-content">
+                <h2>发送图片</h2>
+                <div class="form-group">
+                    <label>图片URL</label>
+                    <input type="url" id="dm-image-url" placeholder="输入图片链接...">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" onclick="$('dm-image-modal').classList.remove('active')">取消</button>
+                    <button type="button" class="primary-btn" onclick="sendDMImage()">发送</button>
                 </div>
             </div>
         </div>

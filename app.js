@@ -1,17 +1,18 @@
-// OC世界 v2.0 - 完整版
+// OC世界 v2.1 - 完整版
 (function() {
     'use strict';
     
     const CONFIG = {
         PAGE_SIZE: 12,
         TAGS: ['魔法', '热血', '治愈', '腹黑', '温柔', '高冷', '傲娇', '软萌', '御姐', '正太', 'LOLI', '兽耳', '机械', '异世界', '校园', '奇幻', '科幻', '古风'],
+        EMOJIS: ['😀','😎','😍','🤔','😢','😡','😭','🥰','🤯','😇','👻','👽','🤖','💀','🎭','🔥','✨','💫','🌟','⭐️','❤️','💔','👍','👎','🙏','💪','🎉','🎊','🏆','🎯','💡'],
         SUPABASE_URL: 'https://aygduhidyfkantqjzfec.supabase.co',
         SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5Z2R1aGlkeWZrYW50cWp6ZmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDgzMzcsImV4cCI6MjA4Njc4NDMzN30.nMEWXv6lnorwU2swGgkKMAAnljjQpiGW6BnGZ6tOBq8',
         CURRENT_USER_KEY: 'oc_current_user'
     };
     
-    let currentUser = null, currentOC = null, currentPage = 1, totalPages = 1, currentMode = 'all';
-    let dbData = { users: [], worlds: [], ocs: [], comments: [], favorites: [], follows: { following: [], followers: [] }, notifications: [], messages: [], friends: [], reports: [], user_settings: {} };
+    let currentUser = null, currentOC = null, currentChatFriend = null, currentPage = 1, totalPages = 1, currentMode = 'all';
+    let dbData = { users: [], worlds: [], ocs: [], comments: [], favorites: [], follows: { following: [], followers: [] }, notifications: [], messages: [], dmMessages: [], friends: [], reports: [], user_settings: {} };
     
     function $(id) { return document.getElementById(id); }
     function $$(sel) { return document.querySelectorAll(sel); }
@@ -39,11 +40,11 @@
     
     async function loadAllData() {
         try {
-            const [users, worlds, ocs, comments, favorites, follows, notifications, messages, friends, reports, settings] = await Promise.all([
-                supabaseFetch('users'), supabaseFetch('worlds'), supabaseFetch('ocs', '?order=created_at.desc'), supabaseFetch('comments', '?order=created_at.desc'), supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'), supabaseFetch('messages', '?order=created_at.desc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
+            const [users, worlds, ocs, comments, favorites, follows, notifications, messages, dmMessages, friends, reports, settings] = await Promise.all([
+                supabaseFetch('users'), supabaseFetch('worlds'), supabaseFetch('ocs', '?order=created_at.desc'), supabaseFetch('comments', '?order=created_at.desc'), supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'), supabaseFetch('messages', '?order=created_at.desc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.desc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
             ]);
             const settingsMap = {}; (settings || []).forEach(s => settingsMap[s.user_id] = s);
-            dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap };
+            dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], dmMessages: dmMessages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap };
         } catch (e) { console.error('加载失败:', e); }
     }
     
@@ -89,6 +90,46 @@
     
     function doLogout() { localStorage.removeItem(CONFIG.CURRENT_USER_KEY); currentUser = null; showView('auth'); }
     
+    async function deleteAccount() {
+        if (!currentUser) return;
+        showConfirm('删除账户', '确定删除账户？此操作不可恢复！你的所有OC、世界观将被永久删除。', async confirmed => {
+            if (confirmed) {
+                try {
+                    // 删除用户的所有OC
+                    const userOCs = dbData.ocs.filter(o => o.author_id === currentUser.id);
+                    for (const oc of userOCs) { await supabaseDelete('ocs', `id=eq.${oc.id}`); }
+                    
+                    // 删除用户创建的世界观
+                    const userWorlds = dbData.worlds.filter(w => w.owner_id === currentUser.id);
+                    for (const world of userWorlds) { await supabaseDelete('worlds', `id=eq.${world.id}`); }
+                    
+                    // 删除用户的评论
+                    const userComments = dbData.comments.filter(c => c.author_id === currentUser.id);
+                    for (const comment of userComments) { await supabaseDelete('comments', `id=eq.${comment.id}`); }
+                    
+                    // 删除用户的收藏
+                    const userFavorites = dbData.favorites.filter(f => f.user_id === currentUser.id);
+                    for (const fav of userFavorites) { await supabaseDelete('favorites', `id=eq.${fav.id}`); }
+                    
+                    // 删除用户的关注关系
+                    const userFollows = dbData.follows.filter(f => f.user_id === currentUser.id || f.follow_user_id === currentUser.id);
+                    for (const follow of userFollows) { await supabaseDelete('follows', `id=eq.${follow.id}`); }
+                    
+                    // 删除用户设置
+                    await supabaseDelete('user_settings', `user_id=eq.${currentUser.id}`);
+                    
+                    // 删除用户
+                    await supabaseDelete('users', `id=eq.${currentUser.id}`);
+                } catch(e) { console.error(e); }
+                
+                localStorage.removeItem(CONFIG.CURRENT_USER_KEY);
+                currentUser = null;
+                showToast('账户已删除', 'success');
+                showView('auth');
+            }
+        });
+    }
+    
     function updateUserInfo() {
         if (!currentUser) return;
         const roleText = currentUser.role === 'author' ? '作者' : '游客';
@@ -98,6 +139,7 @@
         if ($('dropdown-role')) $('dropdown-role').textContent = roleText;
         if ($('create-oc-btn')) $('create-oc-btn').style.display = currentUser.role === 'author' ? 'block' : 'none';
         if ($('chat-btn')) $('chat-btn').style.display = currentUser.role === 'author' ? 'block' : 'none';
+        if ($('delete-account-btn')) $('delete-account-btn').style.display = 'block';
         updateNotificationBadge();
     }
     
@@ -108,7 +150,7 @@
     function renderNotifications() {
         const notifs = getNotifications();
         const container = $('notifications-list');
-        container.innerHTML = notifs.length ? notifs.map(n => `<div class="notification-item"><div class="notification-icon">${n.type==='评论'?'💬':n.type==='关注'?'👤':n.type==='举报'?'🚨':n.type==='OC'?'🎭':'📋'}</div><div class="notification-content"><div class="notification-text">${escapeHtml(n.text)}</div><div class="notification-time">${formatTime(n.created_at)}</div></div></div>`).join('') : '<div class="empty-state"><span>🔔</span><p>暂无通知</p></div>';
+        container.innerHTML = notifs.length ? notifs.map(n => `<div class="notification-item"><div class="notification-icon">${n.type==='评论'?'💬':n.type==='关注'?'👤':n.type==='举报'?'🚨':n.type==='OC'?'🎭':n.type==='私信'?'💌':'📋'}</div><div class="notification-content"><div class="notification-text">${escapeHtml(n.text)}</div><div class="notification-time">${formatTime(n.created_at)}</div></div></div>`).join('') : '<div class="empty-state"><span>🔔</span><p>暂无通知</p></div>';
         notifs.forEach(n => n.read_status = 1); updateNotificationBadge();
     }
     
@@ -160,10 +202,54 @@
         $('author-oc-count').textContent = 'OC: ' + authorOCs.length;
         const author = dbData.users.find(u => u.id === currentOC.author_id);
         $('author-avatar').textContent = author?.avatar || '👤';
-        if ($('edit-oc-btn')) $('edit-oc-btn').style.display = (currentUser && currentUser.id === currentOC.author_id) ? 'inline-block' : 'none';
-        if ($('delete-oc-btn')) $('delete-oc-btn').style.display = (currentUser && currentUser.id === currentOC.author_id) ? 'inline-block' : 'none';
-        if ($('report-oc-btn')) $('report-oc-btn').style.display = (currentUser && currentUser.id !== currentOC.author_id) ? 'inline-block' : 'none';
+        
+        // 只有作者本人可以编辑和删除
+        const isOwner = currentUser && currentUser.id === currentOC.author_id;
+        if ($('edit-oc-btn')) $('edit-oc-btn').style.display = isOwner ? 'inline-block' : 'none';
+        if ($('delete-oc-btn')) $('delete-oc-btn').style.display = isOwner ? 'inline-block' : 'none';
+        if ($('report-oc-btn')) $('report-oc-btn').style.display = (currentUser && !isOwner) ? 'inline-block' : 'none';
+        
         renderComments(); updateFavoriteBtn(); updateFollowBtn(); showView('detail');
+    }
+    
+    // 编辑OC
+    function openEditOC() {
+        if (!currentUser || !currentOC || currentUser.id !== currentOC.author_id) return;
+        $('modal-title').textContent = '编辑OC';
+        $('oc-name-input').value = currentOC.name || '';
+        $('oc-image-input').value = currentOC.image || '';
+        $('oc-desc-input').value = currentOC.description || '';
+        $('oc-tags-input').value = currentOC.tags || '';
+        $('oc-world-select').innerHTML = '<option value="">无</option>' + dbData.worlds.map(w => `<option value="${w.id}" ${w.id === currentOC.world_id ? 'selected' : ''}>${escapeHtml(w.name)}</option>`).join('');
+        $('oc-modal').classList.add('active');
+    }
+    
+    async function saveOC(e) {
+        e.preventDefault();
+        const name = $('oc-name-input').value.trim(); const image = $('oc-image-input').value.trim(); const desc = $('oc-desc-input').value.trim(); const tagsStr = $('oc-tags-input').value.trim(); const worldId = $('oc-world-select').value;
+        if (!name) { showToast('请输入名称', 'error'); return; }
+        const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t).join(',') : '';
+        
+        // 检查是创建还是编辑
+        const isEditing = currentOC && $('modal-title').textContent === '编辑OC';
+        
+        if (isEditing) {
+            // 更新现有OC
+            const updateData = { name, image, description: desc, tags, world_id: worldId || null };
+            try { await supabaseUpdate('ocs', updateData, `id=eq.${currentOC.id}`); } catch(e) {}
+            const idx = dbData.ocs.findIndex(o => o.id === currentOC.id);
+            if (idx >= 0) { dbData.ocs[idx] = {...dbData.ocs[idx], ...updateData}; }
+            showToast('OC已更新！', 'success');
+        } else {
+            // 创建新OC
+            const newOC = { id: genId('oc'), name, image, description: desc, tags, author_id: currentUser.id, author_name: currentUser.nickname || currentUser.email?.split('@')[0], world_id: worldId || null, views: 0, likes: 0, created_at: new Date().toISOString() };
+            try { await supabaseInsert('ocs', newOC); } catch(e) {} dbData.ocs.push(newOC);
+            if (worldId) { const world = dbData.worlds.find(w => w.id === worldId); if (world) { world.oc_count = (world.oc_count || 0) + 1; try { await supabaseUpdate('worlds', { oc_count: world.oc_count }, `id=eq.${worldId}`); } catch(e) {} } }
+            const friendList = dbData.friends.filter(f => f.friend_id === currentUser.id && f.status === 'accepted');
+            for (const friend of friendList) { addNotification(friend.user_id, currentUser.nickname + ' 发布了新OC: ' + name, 'OC'); }
+            showToast('创建成功！', 'success');
+        }
+        closeOCModal(); renderOClist(); showView('hall');
     }
     
     function renderComments() { const container = $('comments-list'); const ocComments = dbData.comments.filter(c => c.oc_id === currentOC.id); container.innerHTML = ocComments.length ? ocComments.map(c => `<div class="comment-item"><div class="comment-header"><span class="comment-author">${escapeHtml(c.author_name)}</span><span class="comment-time">${formatTime(c.created_at)}</span></div><div class="comment-content">${escapeHtml(c.content)}</div></div>`).join('') : '<p style="text-align:center;color:#999">暂无评论</p>'; }
@@ -216,23 +302,14 @@
     
     function openCreateOC() {
         if (!currentUser || currentUser.role !== 'author') { showToast('只有作者才能创建OC', 'error'); return; }
+        currentOC = null; // 清除编辑状态
+        $('modal-title').textContent = '创建OC';
+        $('oc-form').reset();
         $('oc-world-select').innerHTML = '<option value="">无</option>' + dbData.worlds.map(w => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('');
-        $('modal-title').textContent = '创建OC'; $('oc-form').reset(); $('oc-modal').classList.add('active');
+        $('oc-modal').classList.add('active');
     }
     
-    async function saveOC(e) {
-        e.preventDefault();
-        const name = $('oc-name-input').value.trim(); const image = $('oc-image-input').value.trim(); const desc = $('oc-desc-input').value.trim(); const tagsStr = $('oc-tags-input').value.trim(); const worldId = $('oc-world-select').value;
-        if (!name) { showToast('请输入名称', 'error'); return; }
-        const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(t => t).join(',') : '';
-        const newOC = { id: genId('oc'), name, image, description: desc, tags, author_id: currentUser.id, author_name: currentUser.nickname || currentUser.email?.split('@')[0], world_id: worldId || null, views: 0, likes: 0, created_at: new Date().toISOString() };
-        try { await supabaseInsert('ocs', newOC); } catch(e) {} dbData.ocs.push(newOC);
-        if (worldId) { const world = dbData.worlds.find(w => w.id === worldId); if (world) { world.oc_count = (world.oc_count || 0) + 1; try { await supabaseUpdate('worlds', { oc_count: world.oc_count }, `id=eq.${worldId}`); } catch(e) {} } }
-        const friendList = dbData.friends.filter(f => f.friend_id === currentUser.id && f.status === 'accepted');
-        for (const friend of friendList) { addNotification(friend.user_id, currentUser.nickname + ' 发布了新OC: ' + name, 'OC'); }
-        closeOCModal(); renderOClist(); showView('hall'); showToast('创建成功！', 'success');
-    }
-    function closeOCModal() { $('oc-modal').classList.remove('active'); }
+    function closeOCModal() { $('oc-modal').classList.remove('active'); currentOC = null; }
     
     function renderWorlds() { const worlds = dbData.worlds; const grid = $('world-grid'); grid.innerHTML = worlds.length ? worlds.map(w => `<div class="world-card" data-id="${w.id}"><div class="world-card-cover">${w.cover?'<img src="'+escapeHtml(w.cover)+'">':'🌍'}</div><div class="world-card-body"><h3 class="world-card-name">${escapeHtml(w.name)}</h3><p class="world-card-desc">${escapeHtml(w.description||'')}</p></div></div>`).join('') : '<div class="empty-state" style="grid-column:1/-1"><span>🌍</span><p>暂无世界观</p></div>'; }
     window.showWorldDetail = function(worldId) { const worldOCs = dbData.ocs.filter(o => o.world_id === worldId); const grid = $('oc-grid'); grid.innerHTML = worldOCs.length ? worldOCs.map(oc => `<div class="oc-card" data-id="${oc.id}"><div class="oc-card-image">${oc.image?'<img src="'+escapeHtml(oc.image)+'">':'🎭'}</div><div class="oc-card-body"><h3 class="oc-card-name">${escapeHtml(oc.name)}</h3><p class="oc-card-author">作者: ${escapeHtml(oc.author_name)}</p></div></div>`).join('') : '<div class="empty-state"><span>📦</span><p>暂无OC</p></div>'; showView('hall'); };
@@ -240,38 +317,114 @@
     function closeWorldModal() { $('world-modal').classList.remove('active'); }
     async function saveWorld(e) { e.preventDefault(); const name = $('world-name-input').value.trim(); const desc = $('world-desc-input').value.trim(); if (!name) { showToast('请输入名称', 'error'); return; } const newWorld = { id: genId('w'), name, description: desc, owner_id: currentUser.id, oc_count: 0, created_at: new Date().toISOString() }; try { await supabaseInsert('worlds', newWorld); } catch(e) {} dbData.worlds.push(newWorld); closeWorldModal(); renderWorlds(); showToast('创建成功！', 'success'); }
     
+    // 好友功能
     function showFriendsView() {
         const container = $('friends-list');
         const myFriends = dbData.friends.filter(f => (f.user_id === currentUser.id || f.friend_id === currentUser.id) && f.status === 'accepted');
         let html = '<h3>我的好友</h3>';
         if (myFriends.length === 0) { html += '<p style="text-align:center;color:#999">暂无好友，去大厅关注作者吧！</p>'; }
-        else { html += '<div class="friends-grid">'; for (const f of myFriends) { const friendId = f.user_id === currentUser.id ? f.friend_id : f.user_id; const friend = dbData.users.find(u => u.id === friendId); if (friend) { const friendOCs = dbData.ocs.filter(o => o.author_id === friendId); html += `<div class="friend-card" data-id="${friend.id}"><div class="friend-avatar">${friend.avatar || '👤'}</div><div class="friend-info"><div class="friend-name">${escapeHtml(friend.nickname || friend.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${friendOCs.length}</div></div><button class="primary-btn" onclick="viewFriendOCs('${friend.id}')">查看OC</button></div>`; } } html += '</div>'; }
+        else { html += '<div class="friends-grid">'; for (const f of myFriends) { const friendId = f.user_id === currentUser.id ? f.friend_id : f.user_id; const friend = dbData.users.find(u => u.id === friendId); if (friend) { const friendOCs = dbData.ocs.filter(o => o.author_id === friendId); html += `<div class="friend-card" data-id="${friend.id}"><div class="friend-avatar">${friend.avatar || '👤'}</div><div class="friend-info"><div class="friend-name">${escapeHtml(friend.nickname || friend.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${friendOCs.length}</div></div><div class="friend-actions"><button class="primary-btn" onclick="viewFriendOCs('${friend.id}')">查看OC</button><button class="secondary-btn" onclick="openDMChat('${friend.id}')">💬 私信</button></div></div>`; } } html += '</div>'; }
         html += '<h3 style="margin-top:20px">我的关注</h3>';
         const following = dbData.users.filter(u => dbData.follows.following.includes(u.id));
         if (following.length === 0) { html += '<p style="text-align:center;color:#999">暂无关注</p>'; }
-        else { html += '<div class="friends-grid">'; for (const u of following) { const ocCount = dbData.ocs.filter(o => o.author_id === u.id).length; html += `<div class="friend-card"><div class="friend-avatar">${u.avatar || '👤'}</div><div class="friend-info"><div class="friend-name">${escapeHtml(u.nickname || u.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${ocCount}</div></div></div>`; } html += '</div>'; }
+        else { html += '<div class="friends-grid">'; for (const u of following) { const ocCount = dbData.ocs.filter(o => o.author_id === u.id).length; html += `<div class="friend-card"><div class="friend-avatar">${u.avatar || '👤'}</div><div class="friend-info"><div class="friend-name">${escapeHtml(u.nickname || u.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${ocCount}</div></div><button class="secondary-btn" onclick="openDMChat('${u.id}')">💬 私信</button></div>`; } html += '</div>'; }
         container.innerHTML = html; showView('friends');
     }
     window.viewFriendOCs = function(friendId) { const friendOCs = dbData.ocs.filter(o => o.author_id === friendId); const grid = $('oc-grid'); grid.innerHTML = friendOCs.length ? friendOCs.map(oc => `<div class="oc-card" data-id="${oc.id}"><div class="oc-card-image">${oc.image?'<img src="'+escapeHtml(oc.image)+'">':'🎭'}</div><div class="oc-card-body"><h3 class="oc-card-name">${escapeHtml(oc.name)}</h3><p class="oc-card-author">作者: ${escapeHtml(oc.author_name)}</p></div></div>`).join('') : '<div class="empty-state"><span>📦</span><p>暂无OC</p></div>'; showView('hall'); };
     
+    // 私信聊天
+    window.openDMChat = function(friendId) {
+        if (!currentUser) { showToast('请先登录', 'error'); return; }
+        const friend = dbData.users.find(u => u.id === friendId);
+        if (!friend) { showToast('用户不存在', 'error'); return; }
+        currentChatFriend = friend;
+        $('dm-chat-title').textContent = '与 ' + (friend.nickname || friend.email?.split('@')[0]) + ' 聊天';
+        renderDMMessages();
+        showView('dm-chat');
+    }
+    
+    function renderDMMessages() {
+        const container = $('dm-messages');
+        if (!container) return;
+        const friendId = currentChatFriend?.id;
+        if (!friendId) return;
+        const msgs = dbData.dmMessages.filter(m => (m.sender_id === currentUser.id && m.receiver_id === friendId) || (m.sender_id === friendId && m.receiver_id === currentUser.id));
+        container.innerHTML = msgs.map(m => {
+            const isOwn = m.sender_id === currentUser.id;
+            let content = escapeHtml(m.content);
+            if (m.type === 'image') content = `<img src="${escapeHtml(m.content)}" style="max-width:200px;border-radius:8px;">`;
+            else if (m.type === 'emoji') content = `<span style="font-size:2rem">${escapeHtml(m.content)}</span>`;
+            return `<div class="chat-message ${isOwn ? 'own' : ''}"><div class="chat-avatar">${isOwn ? (currentUser.nickname || '?').charAt(0) : (currentChatFriend.nickname || '?').charAt(0)}</div><div class="chat-content"><div class="chat-name">${isOwn ? (currentUser.nickname || '?') : (currentChatFriend.nickname || '?')}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
+        }).join('');
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+    }
+    
+    async function sendDMMessage() {
+        if (!currentUser || !currentChatFriend) return;
+        const content = $('dm-input').value.trim();
+        if (!content) return;
+        const msg = { id: genId('dm'), sender_id: currentUser.id, receiver_id: currentChatFriend.id, content, type: 'text', created_at: new Date().toISOString() };
+        try { await supabaseInsert('dm_messages', msg); } catch(e) {} dbData.dmMessages.push(msg);
+        $('dm-input').value = '';
+        renderDMMessages();
+        addNotification(currentChatFriend.id, currentUser.nickname + ' 发来了私信', '私信');
+    }
+    
+    async function sendDMImage() {
+        if (!currentUser || !currentChatFriend) return;
+        const url = $('dm-image-url').value.trim();
+        if (!url) { showToast('请输入图片URL', 'error'); return; }
+        const msg = { id: genId('dm'), sender_id: currentUser.id, receiver_id: currentChatFriend.id, content: url, type: 'image', created_at: new Date().toISOString() };
+        try { await supabaseInsert('dm_messages', msg); } catch(e) {} dbData.dmMessages.push(msg);
+        $('dm-image-url').value = '';
+        $('dm-image-modal').classList.remove('active');
+        renderDMMessages();
+        addNotification(currentChatFriend.id, currentUser.nickname + ' 发来了图片', '私信');
+    }
+    
+    function showEmojiPicker() {
+        let html = '<div class="emoji-picker">';
+        CONFIG.EMOJIS.forEach(emoji => { html += `<span class="emoji-btn" onclick="sendDMEmoji('${emoji}')">${emoji}</span>`; });
+        html += '</div>';
+        const container = $('dm-emoji-area');
+        if (container) container.innerHTML = html;
+    }
+    
+    window.sendDMEmoji = function(emoji) {
+        if (!currentUser || !currentChatFriend) return;
+        const msg = { id: genId('dm'), sender_id: currentUser.id, receiver_id: currentChatFriend.id, content: emoji, type: 'emoji', created_at: new Date().toISOString() };
+        dbData.dmMessages.push(msg);
+        supabaseInsert('dm_messages', msg).catch(e => {});
+        renderDMMessages();
+    }
+    
+    // 公共聊天室
     function showChatView() {
         if (!currentUser || currentUser.role !== 'author') { showToast('只有作者才能进入聊天平台', 'error'); return; }
         renderMessages(); showView('chat');
         setTimeout(() => { const container = $('chat-messages'); if (container) container.scrollTop = container.scrollHeight; }, 100);
     }
+    
     function renderMessages() {
         const container = $('chat-messages');
         if (!container) return;
         const msgs = dbData.messages.slice(-100);
-        container.innerHTML = msgs.map(m => `<div class="chat-message ${m.user_id === currentUser?.id ? 'own' : ''}"><div class="chat-avatar">${m.user_name?.charAt(0) || '👤'}</div><div class="chat-content"><div class="chat-name">${escapeHtml(m.user_name)}</div><div class="chat-text">${escapeHtml(m.content)}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`).join('');
+        container.innerHTML = msgs.map(m => {
+            let content = escapeHtml(m.content);
+            if (m.type === 'image') content = `<img src="${escapeHtml(m.content)}" style="max-width:200px;border-radius:8px;">`;
+            else if (m.type === 'emoji') content = `<span style="font-size:2rem">${escapeHtml(m.content)}</span>`;
+            return `<div class="chat-message ${m.user_id === currentUser?.id ? 'own' : ''}"><div class="chat-avatar">${m.user_name?.charAt(0) || '👤'}</div><div class="chat-content"><div class="chat-name">${escapeHtml(m.user_name)}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
+        }).join('');
     }
+    
     async function sendMessage() {
         if (!currentUser || currentUser.role !== 'author') { showToast('只有作者才能发消息', 'error'); return; }
         const content = $('chat-input').value.trim();
         if (!content) return;
-        const msg = { id: genId('msg'), user_id: currentUser.id, user_name: currentUser.nickname || currentUser.email?.split('@')[0], content, created_at: new Date().toISOString() };
+        const msg = { id: genId('msg'), user_id: currentUser.id, user_name: currentUser.nickname || currentUser.email?.split('@')[0], content, type: 'text', created_at: new Date().toISOString() };
         try { await supabaseInsert('messages', msg); } catch(e) {} dbData.messages.push(msg);
-        $('chat-input').value = ''; renderMessages();
+        $('chat-input').value = '';
+        renderMessages();
         const container = $('chat-messages'); if (container) container.scrollTop = container.scrollHeight;
     }
     
@@ -293,6 +446,7 @@
         $('edit-twitter').value = currentUser.twitter || '';
         showView('profile');
     }
+    
     async function saveProfile() {
         const nickname = $('edit-nickname').value.trim(); const bio = $('edit-bio').value.trim(); const gender = $('edit-gender').value; const birthday = $('edit-birthday').value; const location = $('edit-location').value.trim(); const website = $('edit-website').value.trim(); const github = $('edit-github').value.trim(); const twitter = $('edit-twitter').value.trim();
         const updateData = { nickname, bio, gender, birthday, location, website, github, twitter };
@@ -323,6 +477,10 @@
         $('show-login').addEventListener('click', e => { e.preventDefault(); $('register-form').classList.remove('active'); $('login-form').classList.add('active'); });
         if (localStorage.getItem('remember_email')) { $('login-email').value = localStorage.getItem('remember_email'); $('remember-me').checked = true; }
         $$('[data-action="logout"]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); doLogout(); }));
+        
+        // 删除账户
+        $('delete-account-btn')?.addEventListener('click', deleteAccount);
+        
         $$('.nav-item').forEach(el => { el.addEventListener('click', e => { e.preventDefault(); $$('.nav-item').forEach(i => i.classList.remove('active')); el.classList.add('active'); currentPage = 1; const page = el.dataset.page; if (page === 'hall') { currentMode = 'all'; renderOClist(); showView('hall'); } else if (page === 'trending') { currentMode = 'trending'; renderOClist(); showView('hall'); } else if (page === 'world') { renderWorlds(); showView('world'); } }); });
         $('search-btn').addEventListener('click', () => { currentPage = 1; currentMode = 'all'; renderOClist({ search: $('search-input').value.trim() }); });
         $('search-input').addEventListener('keypress', e => { if (e.key === 'Enter') { currentPage = 1; currentMode = 'all'; renderOClist({ search: this.value.trim() }); } });
@@ -335,15 +493,30 @@
         $$('[data-action="settings"]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); showSettings(); }));
         $$('[data-action="friends"]').forEach(el => el.addEventListener('click', e => { e.preventDefault(); showFriendsView(); }));
         $('notification-bell').addEventListener('click', () => { renderNotifications(); showView('notifications'); });
+        
+        // 聊天
         $('chat-btn')?.addEventListener('click', () => { showChatView(); });
         $('send-chat-btn')?.addEventListener('click', sendMessage);
         $('chat-input')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+        
+        // 私信
+        $('send-dm-btn')?.addEventListener('click', sendDMMessage);
+        $('dm-input')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendDMMessage(); });
+        $('send-image-btn')?.addEventListener('click', () => { $('dm-image-modal').classList.add('active'); });
+        window.showEmojiPicker = showEmojiPicker;
+        
+        // OC操作
         $('create-oc-btn').addEventListener('click', openCreateOC);
+        $('edit-oc-btn')?.addEventListener('click', openEditOC);
         $('cancel-oc-btn').addEventListener('click', closeOCModal);
         $('oc-form').addEventListener('submit', saveOC);
+        
+        // 世界观
         $('create-world-btn').addEventListener('click', openWorldModal);
         $('cancel-world-btn').addEventListener('click', closeWorldModal);
         $('world-form').addEventListener('submit', saveWorld);
+        
+        // 返回按钮
         $('back-from-world')?.addEventListener('click', () => { currentMode = 'all'; renderOClist(); showView('hall'); });
         $('back-to-hall')?.addEventListener('click', () => { currentMode = 'all'; renderOClist(); showView('hall'); });
         $('back-from-profile')?.addEventListener('click', () => showView('hall'));
@@ -352,20 +525,33 @@
         $('back-from-settings')?.addEventListener('click', () => showView('hall'));
         $('back-from-friends')?.addEventListener('click', () => showView('hall'));
         $('back-from-chat')?.addEventListener('click', () => showView('hall'));
+        $('back-from-dm-chat')?.addEventListener('click', () => { currentChatFriend = null; showFriendsView(); });
+        
+        // 评论、收藏、关注
         $('submit-comment').addEventListener('click', submitComment);
         $('favorite-btn').addEventListener('click', toggleFavorite);
         $('delete-oc-btn')?.addEventListener('click', deleteOC);
         $('follow-author').addEventListener('click', toggleFollow);
+        
+        // 举报
         $('report-oc-btn')?.addEventListener('click', openReportModal);
         $('cancel-report-btn')?.addEventListener('click', () => $('report-modal').classList.remove('active'));
         $('submit-report-btn')?.addEventListener('click', submitReport);
+        
+        // 个人资料
         $('save-profile-btn').addEventListener('click', saveProfile);
+        
+        // 设置
         $('notif-toggle')?.addEventListener('change', toggleNotifications);
         $$('input[name="theme"]').forEach(radio => radio.addEventListener('change', function() { changeTheme(this.value); }));
         $('clear-data-btn').addEventListener('click', clearAllData);
+        
+        // 模态框
         $('confirm-cancel').addEventListener('click', () => $('confirm-modal').classList.remove('active'));
         $$('.modal').forEach(modal => { modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); }); });
         $('login-password').addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+        
+        // 点击事件
         $('oc-grid').addEventListener('click', e => { const card = e.target.closest('.oc-card'); if (card) showOCDetail(card.dataset.id); });
         $('world-grid')?.addEventListener('click', e => { const card = e.target.closest('.world-card'); if (card) window.showWorldDetail(card.dataset.id); });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') $$('.modal.active').forEach(m => m.classList.remove('active')); });
@@ -389,6 +575,7 @@
             $$('[data-action="friends"]').forEach(el => el.style.display = 'none');
             if ($('chat-btn')) $('chat-btn').style.display = 'none';
             if ($('create-oc-btn')) $('create-oc-btn').style.display = 'none';
+            if ($('delete-account-btn')) $('delete-account-btn').style.display = 'none';
         } else {
             applyTheme(); updateUserInfo(); renderOClist(); renderQuickTags(); showView('hall');
         }
