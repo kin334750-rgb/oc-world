@@ -89,8 +89,9 @@
                         <a href="#" class="nav-item" data-page="world">🌍 世界观</a>
                     </nav>
                 </div>
-                <div class="header-right">
+                    <div class="header-right">
                     <button class="theme-toggle" id="theme-toggle">🌙</button>
+                    <button class="icon-btn" id="chat-btn" title="作者聊天平台">💬</button>
                     <div class="notification-bell" id="notification-bell">🔔<span class="badge" id="notif-badge">0</span></div>
                     <div class="user-menu">
                         <div class="user-avatar" id="user-avatar">👤</div>
@@ -102,6 +103,7 @@
                             <div class="dropdown-divider"></div>
                             <a href="#" class="dropdown-item" data-action="profile">👤 个人资料</a>
                             <a href="#" class="dropdown-item" data-action="my-ocs">🎭 我的OC</a>
+                            <a href="#" class="dropdown-item" data-action="friends">👥 好友</a>
                             <a href="#" class="dropdown-item" data-action="favorites">❤️ 收藏夹</a>
                             <a href="#" class="dropdown-item" data-action="settings">⚙️ 设置</a>
                             <div class="dropdown-divider"></div>
@@ -162,6 +164,7 @@
                                 <div class="oc-actions">
                                     <button class="edit-btn" id="edit-oc-btn">✏️</button>
                                     <button class="edit-btn" id="delete-oc-btn">🗑️</button>
+                                    <button class="edit-btn" id="report-oc-btn" title="举报">🚨</button>
                                 </div>
                             </div>
                             <p class="oc-author">作者: <span id="oc-author"></span></p>
@@ -211,7 +214,13 @@
                 <div class="profile-form">
                     <h3>编辑资料</h3>
                     <div class="form-group"><label>昵称</label><input type="text" id="edit-nickname"></div>
-                    <div class="form-group"><label>简介</label><textarea id="edit-bio"></textarea></div>
+                    <div class="form-group"><label>简介</label><textarea id="edit-bio" rows="3"></textarea></div>
+                    <div class="form-group"><label>性别</label><select id="edit-gender"><option value="">保密</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option></select></div>
+                    <div class="form-group"><label>生日</label><input type="date" id="edit-birthday"></div>
+                    <div class="form-group"><label>地区</label><input type="text" id="edit-location" placeholder="例如：北京"></div>
+                    <div class="form-group"><label>个人网站</label><input type="url" id="edit-website" placeholder="https://"></div>
+                    <div class="form-group"><label>GitHub</label><input type="text" id="edit-github" placeholder="用户名"></div>
+                    <div class="form-group"><label>Twitter</label><input type="text" id="edit-twitter" placeholder="@用户名"></div>
                     <button id="save-profile-btn" class="primary-btn">保存</button>
                 </div>
             </div>
@@ -231,6 +240,10 @@
             <header class="header"><button id="back-from-settings" class="back-btn">← 返回</button><h2>设置</h2></header>
             <div class="settings-content">
                 <div class="settings-section">
+                    <h3>通知设置</h3>
+                    <label class="toggle-label"><input type="checkbox" id="notif-toggle" checked> 接收新OC推送通知</label>
+                </div>
+                <div class="settings-section">
                     <h3>修改密码</h3>
                     <div class="form-group"><input type="password" id="old-password" placeholder="当前密码"></div>
                     <div class="form-group"><input type="password" id="new-password" placeholder="新密码"></div>
@@ -243,6 +256,22 @@
                 </div>
                 <div class="settings-section">
                     <button id="clear-data-btn" class="danger-btn">清空数据</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="friends-view" class="view">
+            <header class="header"><button id="back-from-friends" class="back-btn">← 返回</button><h2>好友</h2></header>
+            <div class="friends-list" id="friends-list"></div>
+        </div>
+
+        <div id="chat-view" class="view">
+            <header class="header"><button id="back-from-chat" class="back-btn">← 返回</button><h2>💬 作者聊天室</h2></header>
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="发送消息... (仅作者可发言)">
+                    <button id="send-chat-btn" class="primary-btn">发送</button>
                 </div>
             </div>
         </div>
@@ -323,6 +352,31 @@
                 <div class="form-actions">
                     <button id="confirm-cancel" class="secondary-btn">取消</button>
                     <button id="confirm-ok" class="primary-btn">确认</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="report-modal" class="modal">
+            <div class="modal-content">
+                <h2>🚨 举报</h2>
+                <div class="form-group">
+                    <label>举报原因 *</label>
+                    <select id="report-reason-select">
+                        <option value="">选择原因</option>
+                        <option value="抄袭">抄袭/盗用</option>
+                        <option value="违规">内容违规</option>
+                        <option value="骚扰">骚扰他人</option>
+                        <option value="虚假">虚假信息</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>详细说明</label>
+                    <textarea id="report-reason" rows="4" placeholder="请详细说明举报原因..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button id="cancel-report-btn" class="secondary-btn">取消</button>
+                    <button id="submit-report-btn" class="primary-btn">提交举报</button>
                 </div>
             </div>
         </div>
