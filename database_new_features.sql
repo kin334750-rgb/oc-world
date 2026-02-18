@@ -1,6 +1,6 @@
--- 新功能所需的数据库表结构
+-- OC关联功能所需的数据库表
 
--- 1. 关联OC申请表
+-- 1. OC关联申请表
 CREATE TABLE IF NOT EXISTS oc_connections (
     id TEXT PRIMARY KEY,
     oc_id TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS oc_connections (
 CREATE TABLE IF NOT EXISTS ban_pool (
     id TEXT PRIMARY KEY,
     target_id TEXT NOT NULL,
-    target_type TEXT NOT NULL, -- 'oc' 或 'user'
+    target_type TEXT NOT NULL,
     reason TEXT,
     ban_count INTEGER DEFAULT 1,
     is_active BOOLEAN DEFAULT true,

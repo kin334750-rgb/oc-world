@@ -492,6 +492,28 @@
             </div>
         </div>
 
+        <!-- 关联OC弹窗 -->
+        <div id="related-modal" class="modal">
+            <div class="modal-content">
+                <h2>🔗 申请关联OC</h2>
+                <div class="form-group">
+                    <label>搜索OC</label>
+                    <input type="text" id="search-related-oc" placeholder="输入OC名称搜索..." oninput="searchRelatedOC(this.value)">
+                </div>
+                <div id="search-results" style="max-height:300px;overflow-y:auto;margin:10px 0"></div>
+                <button class="secondary-btn" style="width:100%" onclick="$('related-modal').classList.remove('active')">关闭</button>
+            </div>
+        </div>
+
+        <!-- 关联申请管理弹窗 -->
+        <div id="connection-requests-modal" class="modal">
+            <div class="modal-content">
+                <h2>📋 关联申请管理</h2>
+                <div id="connection-requests-list" style="max-height:400px;overflow-y:auto"></div>
+                <button class="secondary-btn" style="width:100%;margin-top:10px" onclick="$('connection-requests-modal').classList.remove('active')">关闭</button>
+            </div>
+        </div>
+
         <div id="toast-container"></div>
     </div>
     <script src="app.js"></script>

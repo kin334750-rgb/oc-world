@@ -83,15 +83,20 @@
                 supabaseFetch('users'), supabaseFetch('worlds'), supabaseFetch('ocs', '?order=created_at.desc'), supabaseFetch('comments', '?order=created_at.desc')
             ]);
             
-            let favorites = [], follows = [], notifications = [], messages = [], dmMessages = [], friends = [], reports = [], settings = [];
+            let favorites = [], follows = [], notifications = [], messages = [], dmMessages = [], friends = [], reports = [], settings = [], ocConnections = [];
             
             if (currentUser && currentUser.role !== 'guest') {
                 try {
-                    [favorites, follows, notifications, messages, dmMessages, friends, reports, settings] = await Promise.all([
-                        supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'),                         supabaseFetch('messages', '?order=created_at.asc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.asc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
+                    [favorites, follows, notifications, messages, dmMessages, friends, reports, settings, ocConnections] = await Promise.all([
+                        supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc&limit=50'), supabaseFetch('messages', '?order=created_at.asc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.asc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings'), supabaseFetch('oc_connections')
                     ]);
                 } catch (e) { console.log('需要登录获取更多数据'); }
             }
+            
+            const settingsMap = {}; (settings || []).forEach(s => settingsMap[s.user_id] = s);
+            dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], dmMessages: dmMessages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap, ocConnections: ocConnections || [] };
+        } catch (e) { console.error('加载失败:', e); }
+    }
             
             const settingsMap = {}; (settings || []).forEach(s => settingsMap[s.user_id] = s);
             dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], dmMessages: dmMessages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap };
@@ -387,6 +392,28 @@
         if ($('comment-input')) $('comment-input').disabled = !canComment;
         if ($('comment-input')) $('comment-input').placeholder = canComment ? '发表看法...' : '登录后评论';
         if ($('submit-comment')) $('submit-comment').disabled = !canComment;
+        
+        // 渲染关联OC
+        const relatedContainer = $('related-ocs');
+        if (relatedContainer) {
+            const relatedOCIds = (dbData.ocConnections || []).filter(c => (c.oc_id === ocId || c.target_oc_id === ocId) && c.status === 'approved').map(c => c.oc_id === ocId ? c.target_oc_id : c.oc_id);
+            const relatedOCs = dbData.ocs.filter(o => relatedOCIds.includes(o.id));
+            relatedContainer.innerHTML = relatedOCs.length ? relatedOCs.map(o => `<span class="related-oc" onclick="showOCDetail('${o.id}')">${escapeHtml(o.name)}</span>`).join('') : '<span style="color:#999">暂无关联</span>';
+        }
+        
+        // 显示申请关联按钮（仅作者本人）
+        const addRelatedBtn = $('add-related-btn');
+        if (addRelatedBtn) {
+            addRelatedBtn.style.display = isOwner ? 'inline-block' : 'none';
+        }
+        
+        // 检查是否有待处理的关联申请
+        if (isOwner) {
+            const pendingRequests = (dbData.ocConnections || []).filter(c => c.target_oc_id === ocId && c.status === 'pending');
+            if (pendingRequests.length > 0) {
+                showToast(`有 ${pendingRequests.length} 个关联申请待处理`, 'info');
+            }
+        }
         
         renderComments(); updateFavoriteBtn(); updateFollowBtn(); showView('detail');
     }
@@ -762,6 +789,8 @@
         $('cancel-report-btn')?.addEventListener('click', () => $('report-modal').classList.remove('active'));
         $('submit-report-btn')?.addEventListener('click', submitReport);
         
+        $('add-related-btn')?.addEventListener('click', openRelatedModal);
+        
         $('save-profile-btn').addEventListener('click', saveProfile);
         $('notif-toggle')?.addEventListener('change', toggleNotifications);
         $$('input[name="theme"]').forEach(radio => radio.addEventListener('change', function() { changeTheme(this.value); }));
@@ -783,6 +812,118 @@
         const myFavs = dbData.favorites.filter(f => f.user_id === currentUser.id).map(f => dbData.ocs.find(o => o.id === f.oc_id)).filter(o => o);
         const grid = $('favorites-grid'); const tagsList = o => o.tags ? o.tags.split(',').slice(0,3) : [];
         grid.innerHTML = myFavs.length ? myFavs.map(oc => `<div class="oc-card" data-id="${oc.id}"><div class="oc-card-image">${oc.image?'<img src="'+escapeHtml(oc.image)+'">':'🎭'}</div><div class="oc-card-body"><h3 class="oc-card-name">${escapeHtml(oc.name)}</h3><p class="oc-card-author">作者: <span class="clickable-author" onclick="event.stopPropagation();showUserProfile('${oc.author_id}')">${escapeHtml(oc.author_name)}</span></p><div class="oc-card-tags">${tagsList(oc).map(t=>'<span class="tag">'+t+'</span>').join('')}</div></div></div>`).join('') : '<div class="empty-state" style="grid-column:1/-1"><span>❤️</span><p>暂无收藏</p></div>';
+    }
+    
+    // 关联OC功能
+    window.openRelatedModal = function() {
+        if (!currentUser || !currentOC || currentUser.id !== currentOC.author_id || currentUser.role !== 'author') return;
+        $('search-related-oc').value = '';
+        $('search-results').innerHTML = '';
+        $('related-modal').classList.add('active');
+    }
+    
+    window.searchRelatedOC = function(query) {
+        if (!query || query.length < 1) {
+            $('search-results').innerHTML = '';
+            return;
+        }
+        const results = dbData.ocs.filter(o => o.name.toLowerCase().includes(query.toLowerCase()) && o.id !== currentOC.id);
+        if (results.length === 0) {
+            $('search-results').innerHTML = '<p style="color:#999;text-align:center">未找到相关OC</p>';
+            return;
+        }
+        $('search-results').innerHTML = results.map(oc => {
+            const isAlreadyConnected = (dbData.ocConnections || []).some(c => 
+                (c.oc_id === currentOC.id && c.target_oc_id === oc.id) || 
+                (c.oc_id === oc.id && c.target_oc_id === currentOC.id)
+            );
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid var(--border)">
+                <div>
+                    <strong>${escapeHtml(oc.name)}</strong>
+                    <span style="color:#999;font-size:0.8rem">by ${escapeHtml(oc.author_name)}</span>
+                </div>
+                ${isAlreadyConnected ? '<span style="color:#999">已关联</span>' : `<button class="primary-btn" onclick="requestConnection('${oc.id}')">申请关联</button>`}
+            </div>`;
+        }).join('');
+    }
+    
+    window.requestConnection = async function(targetOCId) {
+        if (!currentUser || !currentOC) return;
+        const targetOC = dbData.ocs.find(o => o.id === targetOCId);
+        if (!targetOC) return;
+        
+        const reason = prompt('请输入关联理由：');
+        if (!reason) return;
+        
+        const connection = {
+            id: genId('conn'),
+            oc_id: currentOC.id,
+            target_oc_id: targetOCId,
+            reason: reason,
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+        
+        try {
+            await supabaseInsert('oc_connections', connection);
+            dbData.ocConnections = dbData.ocConnections || [];
+            dbData.ocConnections.push(connection);
+            showToast('已发送关联申请', 'success');
+            $('related-modal').classList.remove('active');
+            
+            // 通知目标OC作者
+            addNotification(targetOC.author_id, `${currentOC.name} 申请与你的OC ${targetOC.name} 关联`, 'connection');
+        } catch(e) {
+            showToast('申请失败: ' + e.message, 'error');
+        }
+    }
+    
+    window.openConnectionRequests = function() {
+        if (!currentUser || currentUser.role !== 'author') return;
+        const myOCIds = dbData.ocs.filter(o => o.author_id === currentUser.id).map(o => o.id);
+        const requests = (dbData.ocConnections || []).filter(c => myOCIds.includes(c.target_oc_id) && c.status === 'pending');
+        
+        if (requests.length === 0) {
+            $('connection-requests-list').innerHTML = '<p style="color:#999;text-align:center">暂无待处理的申请</p>';
+        } else {
+            $('connection-requests-list').innerHTML = requests.map(req => {
+                const sourceOC = dbData.ocs.find(o => o.id === req.oc_id);
+                return `<div style="padding:15px;border-bottom:1px solid var(--border)">
+                    <p><strong>${escapeHtml(sourceOC?.name || '未知')}</strong> 申请与你的OC关联</p>
+                    <p style="color:#666;font-size:0.9rem">理由: ${escapeHtml(req.reason)}</p>
+                    <div style="margin-top:10px;display:flex;gap:10px">
+                        <button class="primary-btn" onclick="handleConnection('${req.id}', 'approved')">同意</button>
+                        <button class="secondary-btn" onclick="handleConnection('${req.id}', 'rejected')">拒绝</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        $('connection-requests-modal').classList.add('active');
+    }
+    
+    window.handleConnection = async function(connectionId, status) {
+        const connection = (dbData.ocConnections || []).find(c => c.id === connectionId);
+        if (!connection) return;
+        
+        try {
+            await supabaseUpdate('oc_connections', { status }, `id=eq.${connectionId}`);
+            connection.status = status;
+            
+            const sourceOC = dbData.ocs.find(o => o.id === connection.oc_id);
+            const targetOC = dbData.ocs.find(o => o.id === connection.target_oc_id);
+            
+            if (status === 'approved') {
+                addNotification(sourceOC.author_id, `你的OC ${sourceOC.name} 已与 ${targetOC.name} 关联成功`, 'connection');
+                showToast('已同意关联', 'success');
+            } else {
+                addNotification(sourceOC.author_id, `你的OC ${sourceOC.name} 关联申请被拒绝`, 'connection');
+                showToast('已拒绝', 'info');
+            }
+            
+            openConnectionRequests(); // 刷新列表
+        } catch(e) {
+            showToast('操作失败', 'error');
+        }
     }
     
     async function init() {
