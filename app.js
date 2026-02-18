@@ -87,15 +87,23 @@
             
             if (currentUser && currentUser.role !== 'guest') {
                 try {
-                    [favorites, follows, notifications, messages, dmMessages, friends, reports, settings, ocConnections] = await Promise.all([
-                        supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc&limit=50'), supabaseFetch('messages', '?order=created_at.asc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.asc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings'), supabaseFetch('oc_connections')
+                    [favorites, follows, notifications, messages, dmMessages, friends, reports, settings] = await Promise.all([
+                        supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc&limit=50'), supabaseFetch('messages', '?order=created_at.asc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.asc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
                     ]);
                 } catch (e) { console.log('需要登录获取更多数据'); }
+                
+                // Try to fetch oc_connections if it exists
+                try {
+                    ocConnections = await supabaseFetch('oc_connections') || [];
+                } catch (e) {
+                    console.log('oc_connections表不存在');
+                    ocConnections = [];
+                }
             }
             
             const settingsMap = {}; (settings || []).forEach(s => settingsMap[s.user_id] = s);
             dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], dmMessages: dmMessages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap, ocConnections: ocConnections || [] };
-        } catch (e) { console.error('加载失败:', e); }
+        } catch (e) { console.error('加载失败:', e); dbData.ocs = []; dbData.users = []; dbData.worlds = []; dbData.comments = []; }
     }
             
             const settingsMap = {}; (settings || []).forEach(s => settingsMap[s.user_id] = s);
@@ -117,10 +125,11 @@
     
     // 游客登录
     async function doGuestLogin() {
+        await loadAllData();
         const guestUser = { id: 'guest_' + Date.now(), nickname: '游客', email: '', password: '', role: 'guest', bio: '', avatar: '', gender: '', birthday: '', location: '', website: '', github: '', twitter: '', bg_image: '', sq1: '', sa1: '', sq2: '', sa2: '', created_at: new Date().toISOString() };
         setItem(CONFIG.CURRENT_USER_KEY, guestUser);
         currentUser = guestUser;
-        applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
+        applyTheme(); updateUserInfo(); renderOClist(); renderQuickTags(); showView('hall');
         showToast('以游客身份进入', 'info');
     }
     
