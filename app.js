@@ -15,7 +15,7 @@
         TOKEN_KEY: 'oc_auth_token'
     };
     
-    let currentUser = null, currentOC = null, currentChatFriend = null, currentViewingUser = null, currentPage = 1, totalPages = 1, currentMode = 'all';
+    let currentUser = null, currentOC = null, currentChatFriend = null, currentViewingUser = null, currentPage = 1, totalPages = 1, currentMode = 'all', currentView = 'hall';
     let dbData = { users: [], worlds: [], ocs: [], comments: [], favorites: [], follows: { following: [], followers: [] }, notifications: [], messages: [], dmMessages: [], friends: [], reports: [], user_settings: {} };
     
     function $(id) { return document.getElementById(id); }
@@ -28,6 +28,18 @@
         if (user.avatar) return user.avatar;
         const name = user.nickname || user.email?.split('@')[0] || '?';
         return name.charAt(0).toUpperCase();
+    }
+    
+    function saveState() {
+        setItem('oc_current_view', currentView);
+        setItem('oc_current_page', currentPage);
+        setItem('oc_current_mode', currentMode);
+    }
+    
+    function restoreState() {
+        currentView = getItem('oc_current_view') || 'hall';
+        currentPage = getItem('oc_current_page') || 1;
+        currentMode = getItem('oc_current_mode') || 'all';
     }
     
     // Supabase REST API 调用
@@ -119,7 +131,7 @@
     
     function showConfirm(title, message, callback) { $('confirm-title').textContent = title; $('confirm-message').textContent = message; $('confirm-modal').classList.add('active'); $('confirm-ok').onclick = () => { $('confirm-modal').classList.remove('active'); callback(true); }; $('confirm-cancel').onclick = () => { $('confirm-modal').classList.remove('active'); callback(false); }; }
     
-    function showView(viewName) { $$('.view').forEach(el => { el.classList.remove('active'); el.style.display = 'none'; }); const view = $(viewName + '-view'); if (view) { view.classList.add('active'); view.style.display = 'block'; } window.scrollTo(0, 0); }
+    function showView(viewName) { currentView = viewName; saveState(); $$('.view').forEach(el => { el.classList.remove('active'); el.style.display = 'none'; }); const view = $(viewName + '-view'); if (view) { view.classList.add('active'); view.style.display = 'block'; } window.scrollTo(0, 0); }
     function applyTheme() { const settings = getItem('oc_settings') || { theme: 'light' }; document.body.setAttribute('data-theme', settings.theme); if ($('theme-toggle')) $('theme-toggle').textContent = settings.theme === 'light' ? '🌙' : '☀️'; }
     function getCurrentUser() { return getItem(CONFIG.CURRENT_USER_KEY); }
     function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
@@ -941,6 +953,7 @@
     async function init() {
         await loadAllData();
         currentUser = getCurrentUser();
+        restoreState();
         
         if (currentUser && currentUser.role !== 'guest') {
             try {
@@ -955,9 +968,9 @@
         if (!currentUser) {
             renderOClist(); renderQuickTags(); showView('auth');
         } else if (currentUser.role === 'guest') {
-            applyTheme(); updateUserInfo(); renderOClist(); renderQuickTags(); showView('hall');
+            applyTheme(); updateUserInfo(); renderOClist(); renderQuickTags(); showView(currentView);
         } else {
-            applyTheme(); updateUserInfo(); renderOClist(); renderQuickTags(); showView('hall');
+            applyTheme(); updateUserInfo(); renderOClist(currentMode === 'my' ? { myOnly: true } : {}); renderQuickTags(); showView(currentView);
         }
         bindEvents();
     }
