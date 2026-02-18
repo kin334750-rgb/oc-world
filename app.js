@@ -323,16 +323,35 @@
         $('profile-oc-count').textContent = userOCs.length;
         $('profile-fans').textContent = dbData.follows.followers.filter(f => f === userId).length;
         
-        // 作者才显示编辑按钮
+        // 添加关注和私信按钮（如果不是自己）
+        let actionButtons = '';
+        if (currentUser && currentUser.id !== userId && currentUser.role !== 'guest') {
+            const isFollowing = dbData.follows.following.includes(userId);
+            actionButtons = `
+                <div style="margin-top:10px;display:flex;gap:10px">
+                    <button id="profile-follow-btn" class="primary-btn" onclick="toggleFollowUser('${userId}')">${isFollowing ? '✓ 已关注' : '+ 关注'}</button>
+                    <button class="secondary-btn" onclick="openDMChat('${userId}')">💬 私信</button>
+                </div>
+            `;
+        }
         if (currentUser && currentUser.id === userId && currentUser.role === 'author') {
-            $('profile-edit-btn').style.display = 'block';
-        } else {
-            $('profile-edit-btn').style.display = 'none';
+            actionButtons = `<button id="profile-edit-btn" class="primary-btn" style="margin-top:20px">✏️ 编辑资料</button>`;
         }
         
-        // 渲染该作者的OC
+        // 渲染该作者的OC（可点击）
         const grid = $('profile-ocs-grid');
-        grid.innerHTML = userOCs.length ? userOCs.map(oc => `<div class="oc-card" data-id="${oc.id}"><div class="oc-card-image">${oc.image ? '<img src="'+escapeHtml(oc.image)+'">' : '🎭'}</div><div class="oc-card-body"><h3 class="oc-card-name">${escapeHtml(oc.name)}</h3><p class="oc-card-author">作者: ${escapeHtml(oc.author_name)}</p></div></div>`).join('') : '<p style="text-align:center;color:#999;grid-column:1/-1">暂无OC</p>';
+        grid.innerHTML = userOCs.length ? userOCs.map(oc => `<div class="oc-card" data-id="${oc.id}" onclick="showOCDetail('${oc.id}')" style="cursor:pointer"><div class="oc-card-image">${oc.image ? '<img src="'+escapeHtml(oc.image)+'">' : '🎭'}</div><div class="oc-card-body"><h3 class="oc-card-name">${escapeHtml(oc.name)}</h3></div></div>`).join('') : '<p style="text-align:center;color:#999;grid-column:1/-1">暂无OC</p>';
+        
+        // 添加操作按钮到简介后面
+        const bioEl = $('profile-bio');
+        if (bioEl && !document.getElementById('profile-actions')) {
+            const actionsDiv = document.createElement('div');
+            actionsDiv.id = 'profile-actions';
+            actionsDiv.innerHTML = actionButtons;
+            bioEl.parentNode.insertBefore(actionsDiv, bioEl.nextSibling);
+        } else if (document.getElementById('profile-actions')) {
+            document.getElementById('profile-actions').innerHTML = actionButtons;
+        }
         
         showView('user-profile');
     }
@@ -434,6 +453,29 @@
         updateFollowBtn();
     }
     function updateFollowBtn() { if (!currentUser || !currentOC || !$('follow-author')) return; const isFollowing = dbData.follows.following.includes(currentOC.author_id); $('follow-author').textContent = isFollowing ? '✓ 已关注' : '+ 关注'; }
+    
+    // 关注用户（从个人主页）
+    window.toggleFollowUser = async function(userId) {
+        if (!currentUser || currentUser.role === 'guest') { showToast('请先登录作者账号', 'error'); return; }
+        if (currentUser.id === userId) { showToast('不能关注自己', 'warning'); return; }
+        const idx = dbData.follows.following.indexOf(userId);
+        if (idx >= 0) { 
+            dbData.follows.following.splice(idx, 1); 
+            try { await supabaseDelete('follows', `user_id=eq.${currentUser.id}&follow_user_id=eq.${userId}`); } catch(e) {} 
+            showToast('已取消关注', 'info');
+        } else { 
+            dbData.follows.following.push(userId); 
+            const newFollow = { id: genId('flw'), user_id: currentUser.id, follow_user_id: userId, created_at: new Date().toISOString() }; 
+            try { await supabaseInsert('follows', newFollow); } catch(e) {} 
+            showToast('已关注', 'success');
+            addNotification(userId, currentUser.nickname + ' 关注了你', '关注');
+        }
+        // 刷新按钮状态
+        const btn = $('profile-follow-btn');
+        if (btn) btn.textContent = dbData.follows.following.includes(userId) ? '✓ 已关注' : '+ 关注';
+        // 刷新粉丝数
+        $('profile-fans').textContent = dbData.follows.followers.filter(f => f === userId).length;
+    };
     
     function openReportModal() { if (!currentUser || currentUser.role === 'guest') { showToast('请先登录', 'error'); return; } $('report-modal').classList.add('active'); }
     async function submitReport() {
