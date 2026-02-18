@@ -208,7 +208,28 @@
                 sa2: '',
                 created_at: new Date().toISOString()
             };
-            const created = await supabaseInsert('users', newUser);
+            
+            // 直接调用 Supabase API
+            const url = `${SUPABASE_URL}/rest/v1/users`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(newUser)
+            });
+            
+            if (!res.ok) {
+                const err = await res.text();
+                showToast('注册失败: ' + err, 'error');
+                return;
+            }
+            
+            const created = await res.json();
+            
             await supabaseInsert('user_settings', { user_id: newUser.id, notifications_enabled: 1 });
             
             currentUser = newUser;
