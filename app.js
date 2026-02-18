@@ -195,17 +195,6 @@
                 role: 'author',
                 bio: '',
                 avatar: '',
-                gender: '',
-                birthday: '',
-                location: '',
-                website: '',
-                github: '',
-                twitter: '',
-                bg_image: '',
-                sq1: '',
-                sa1: '',
-                sq2: '',
-                sa2: '',
                 created_at: new Date().toISOString()
             };
             
@@ -230,12 +219,9 @@
             
             const created = await res.json();
             
-            await supabaseInsert('user_settings', { user_id: newUser.id, notifications_enabled: 1 });
-            
             currentUser = newUser;
             setItem(CONFIG.CURRENT_USER_KEY, newUser);
             dbData.users.push(newUser);
-            dbData.user_settings[newUser.id] = { user_id: newUser.id, notifications_enabled: 1 };
         } catch (e) { showToast('注册失败: ' + e.message, 'error'); return; }
         applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
         showToast('注册成功！欢迎成为作者', 'success');
