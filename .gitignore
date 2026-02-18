@@ -4,5 +4,5 @@ Thumbs.db
 .git/
 
 # Environment
-# .env
+.env
 node_modules/
