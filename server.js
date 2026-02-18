@@ -24,7 +24,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
-
+app.use (express.static ('.'));
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -290,4 +290,7 @@ app.post('/api/worlds', authMiddleware, async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+app.get ('*', (req, res) => {
+res.sendFile (__dirname + '/index.html');
 });
