@@ -88,7 +88,7 @@
             if (currentUser && currentUser.role !== 'guest') {
                 try {
                     [favorites, follows, notifications, messages, dmMessages, friends, reports, settings] = await Promise.all([
-                        supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'), supabaseFetch('messages', '?order=created_at.desc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.desc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
+                        supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'),                         supabaseFetch('messages', '?order=created_at.asc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.asc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
                     ]);
                 } catch (e) { console.log('需要登录获取更多数据'); }
             }
@@ -517,7 +517,7 @@
             else if (m.type === 'emoji') content = `<span style="font-size:2rem">${escapeHtml(m.content)}</span>`;
             return `<div class="chat-message ${isOwn ? 'own' : ''}"><div class="chat-avatar clickable" onclick="showUserProfile('${m.sender_id}')">${isOwn ? (currentUser.nickname || '?').charAt(0) : (currentChatFriend.nickname || '?').charAt(0)}</div><div class="chat-content"><div class="chat-name clickable" onclick="showUserProfile('${m.sender_id}')">${isOwn ? (currentUser.nickname || '?') : (currentChatFriend.nickname || '?')}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
         }).join('');
-        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
     }
     
     async function sendDMMessage() {
@@ -576,6 +576,7 @@
             else if (m.type === 'emoji') content = `<span style="font-size:2rem">${escapeHtml(m.content)}</span>`;
             return `<div class="chat-message ${m.user_id === currentUser?.id ? 'own' : ''}"><div class="chat-avatar clickable" onclick="showUserProfile('${m.user_id}')">${m.user_name?.charAt(0) || '👤'}</div><div class="chat-content"><div class="chat-name clickable" onclick="showUserProfile('${m.user_id}')">${escapeHtml(m.user_name)}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
         }).join('');
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
     }
     
     async function sendMessage() {
