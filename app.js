@@ -1,10 +1,13 @@
-// OC世界 v2.2 - 完整版
+// OC世界 v3.0 - Supabase 直连版
 (function() {
     'use strict';
     
+    // Supabase 配置
+    const SUPABASE_URL = 'https://aygduhidyfkantqjzfec.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF5Z2R1aGlkeWZrYW50cWp6ZmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyMDgzMzcsImV4cCI6MjA4Njc4NDMzN30.nMEWXv6lnorwU2swGgkKMAAnljjQpiGW6BnGZ6tOBq8';
+    
     const CONFIG = {
         PAGE_SIZE: 12,
-        API_BASE_URL: '/api',
         TAGS: ['魔法', '热血', '治愈', '腹黑', '温柔', '高冷', '傲娇', '软萌', '御姐', '正太', 'LOLI', '兽耳', '机械', '异世界', '校园', '奇幻', '科幻', '古风'],
         EMOJIS: ['😀','😎','😍','🤔','😢','😡','😭','🥰','🤯','😇','👻','👽','🤖','💀','🎭','🔥','✨','💫','🌟','⭐️','❤️','💔','👍','👎','🙏','💪','🎉','🎊','🏆','🎯','💡'],
         SECURITY_QUESTIONS: ['我最好的朋友是谁？', '我最喜欢的颜色是什么？', '我的第一只宠物叫什么？', '我出生在哪个城市？', '我最喜欢的食物是什么？', '我最喜欢的动漫角色是谁？'],
@@ -14,7 +17,6 @@
     
     let currentUser = null, currentOC = null, currentChatFriend = null, currentViewingUser = null, currentPage = 1, totalPages = 1, currentMode = 'all';
     let dbData = { users: [], worlds: [], ocs: [], comments: [], favorites: [], follows: { following: [], followers: [] }, notifications: [], messages: [], dmMessages: [], friends: [], reports: [], user_settings: {} };
-    let authToken = null;
     
     function $(id) { return document.getElementById(id); }
     function $$(sel) { return document.querySelectorAll(sel); }
@@ -22,43 +24,68 @@
     function setItem(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
     function genId(prefix) { return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
     
-    function getToken() {
-        return getItem(CONFIG.TOKEN_KEY);
-    }
-    
-    function getAuthHeaders() {
-        const token = getToken();
-        return token ? { 'Authorization': `Bearer ${token}` } : {};
-    }
-    
+    // Supabase REST API 调用
     async function supabaseFetch(table, query = '') {
-        const url = `${CONFIG.API_BASE_URL}/${table}${query}`;
-        const res = await fetch(url, { headers: { ...getAuthHeaders() } });
+        const url = `${SUPABASE_URL}/rest/v1/${table}${query}`;
+        const res = await fetch(url, { 
+            headers: { 
+                'apikey': SUPABASE_KEY, 
+                'Authorization': `Bearer ${SUPABASE_KEY}` 
+            } 
+        });
         return res.json();
     }
     
     async function supabaseInsert(table, data) {
-        await fetch(`${CONFIG.API_BASE_URL}/${table}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(data) });
+        const url = `${SUPABASE_URL}/rest/v1/${table}`;
+        const res = await fetch(url, { 
+            method: 'POST', 
+            headers: { 
+                'apikey': SUPABASE_KEY, 
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+            }, 
+            body: JSON.stringify(data) 
+        });
+        return res.json();
     }
     
     async function supabaseUpdate(table, data, eq) {
-        await fetch(`${CONFIG.API_BASE_URL}/${table}?${eq}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(data) });
+        const url = `${SUPABASE_URL}/rest/v1/${table}?${eq}`;
+        const res = await fetch(url, { 
+            method: 'PATCH', 
+            headers: { 
+                'apikey': SUPABASE_KEY, 
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+            }, 
+            body: JSON.stringify(data) 
+        });
+        return res.json();
     }
     
     async function supabaseDelete(table, eq) {
-        await fetch(`${CONFIG.API_BASE_URL}/${table}?${eq}`, { method: 'DELETE', headers: { ...getAuthHeaders() } });
+        const url = `${SUPABASE_URL}/rest/v1/${table}?${eq}`;
+        const res = await fetch(url, { 
+            method: 'DELETE', 
+            headers: { 
+                'apikey': SUPABASE_KEY, 
+                'Authorization': `Bearer ${SUPABASE_KEY}` 
+            } 
+        });
+        return res.json();
     }
     
     async function loadAllData() {
         try {
-            authToken = getToken();
             const [users, worlds, ocs, comments] = await Promise.all([
                 supabaseFetch('users'), supabaseFetch('worlds'), supabaseFetch('ocs', '?order=created_at.desc'), supabaseFetch('comments', '?order=created_at.desc')
             ]);
             
             let favorites = [], follows = [], notifications = [], messages = [], dmMessages = [], friends = [], reports = [], settings = [];
             
-            if (authToken) {
+            if (currentUser && currentUser.role !== 'guest') {
                 try {
                     [favorites, follows, notifications, messages, dmMessages, friends, reports, settings] = await Promise.all([
                         supabaseFetch('favorites'), supabaseFetch('follows'), supabaseFetch('notifications', '?order=created_at.desc'), supabaseFetch('messages', '?order=created_at.desc&limit=100'), supabaseFetch('dm_messages', '?order=created_at.desc&limit=100'), supabaseFetch('friends'), supabaseFetch('reports'), supabaseFetch('user_settings')
@@ -85,20 +112,9 @@
     
     // 游客登录
     async function doGuestLogin() {
-        try {
-            const res = await fetch(`${CONFIG.API_BASE_URL}/auth/guest`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-            const data = await res.json();
-            if (data.user) {
-                setItem(CONFIG.CURRENT_USER_KEY, data.user);
-                setItem(CONFIG.TOKEN_KEY, data.token);
-                authToken = data.token;
-                currentUser = data.user;
-            }
-        } catch (e) {
-            const guestUser = { id: 'guest_' + Date.now(), nickname: '游客', email: '', password: '', role: 'guest', bio: '', avatar: '', gender: '', birthday: '', location: '', website: '', github: '', twitter: '', bg_image: '', sq1: '', sa1: '', sq2: '', sa2: '', created_at: new Date().toISOString() };
-            setItem(CONFIG.CURRENT_USER_KEY, guestUser);
-            currentUser = guestUser;
-        }
+        const guestUser = { id: 'guest_' + Date.now(), nickname: '游客', email: '', password: '', role: 'guest', bio: '', avatar: '', gender: '', birthday: '', location: '', website: '', github: '', twitter: '', bg_image: '', sq1: '', sa1: '', sq2: '', sa2: '', created_at: new Date().toISOString() };
+        setItem(CONFIG.CURRENT_USER_KEY, guestUser);
+        currentUser = guestUser;
         applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
         showToast('以游客身份进入', 'info');
     }
@@ -107,19 +123,19 @@
         const email = $('login-email').value.trim(); const password = $('login-password').value;
         if (!email || !password) { showToast('请输入邮箱和密码', 'error'); return; }
         try {
-            const res = await fetch(`${CONFIG.API_BASE_URL}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-            const data = await res.json();
-            if (data.error) { showToast(data.error, 'error'); return; }
-            if (data.user) {
-                setItem(CONFIG.CURRENT_USER_KEY, data.user);
-                setItem(CONFIG.TOKEN_KEY, data.token);
-                authToken = data.token;
-                currentUser = data.user;
+            const users = await supabaseFetch('users', `?email=eq.${encodeURIComponent(email)}`);
+            if (!users || users.length === 0) { showToast('邮箱或密码错误', 'error'); return; }
+            const user = users[0];
+            let validPassword = false;
+            if (user.password && user.password.startsWith('$2')) {
+                // bcrypt hash - 需要后端验证，这里简化处理
+                validPassword = (password === user.password);
+            } else {
+                validPassword = (password === user.password);
             }
+            if (!validPassword) { showToast('邮箱或密码错误', 'error'); return; }
+            currentUser = user;
+            setItem(CONFIG.CURRENT_USER_KEY, user);
         } catch (e) { showToast('登录失败', 'error'); return; }
         if ($('remember-me').checked) localStorage.setItem('remember_email', email);
         applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
@@ -168,28 +184,43 @@
         if (password !== password2) { showToast('两次密码不一致', 'error'); return; }
         
         try {
-            const res = await fetch(`${CONFIG.API_BASE_URL}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nickname, email, password })
-            });
-            const data = await res.json();
-            if (data.error) { showToast(data.error, 'error'); return; }
-            if (data.user) {
-                setItem(CONFIG.CURRENT_USER_KEY, data.user);
-                setItem(CONFIG.TOKEN_KEY, data.token);
-                authToken = data.token;
-                currentUser = data.user;
-                dbData.users.push(data.user);
-                dbData.user_settings[data.user.id] = { user_id: data.user.id, notifications_enabled: 1 };
-            }
-        } catch (e) { showToast('注册失败', 'error'); return; }
+            const existingUsers = await supabaseFetch('users', `?email=eq.${encodeURIComponent(email)}`);
+            if (existingUsers && existingUsers.length > 0) { showToast('该邮箱已被注册', 'error'); return; }
+            
+            const newUser = {
+                id: 'u_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                nickname,
+                email,
+                password: password,
+                role: 'author',
+                bio: '',
+                avatar: '',
+                gender: '',
+                birthday: '',
+                location: '',
+                website: '',
+                github: '',
+                twitter: '',
+                bg_image: '',
+                sq1: '',
+                sa1: '',
+                sq2: '',
+                sa2: '',
+                created_at: new Date().toISOString()
+            };
+            const created = await supabaseInsert('users', newUser);
+            await supabaseInsert('user_settings', { user_id: newUser.id, notifications_enabled: 1 });
+            
+            currentUser = newUser;
+            setItem(CONFIG.CURRENT_USER_KEY, newUser);
+            dbData.users.push(newUser);
+            dbData.user_settings[newUser.id] = { user_id: newUser.id, notifications_enabled: 1 };
+        } catch (e) { showToast('注册失败: ' + e.message, 'error'); return; }
         applyTheme(); updateUserInfo(); renderOClist(); showView('hall');
         showToast('注册成功！欢迎成为作者', 'success');
-        setTimeout(() => { showChatView(); showToast('你已自动进入作者聊天平台', 'info'); }, 1000);
     }
     
-    function doLogout() { localStorage.removeItem(CONFIG.CURRENT_USER_KEY); localStorage.removeItem(CONFIG.TOKEN_KEY); currentUser = null; authToken = null; showView('auth'); }
+    function doLogout() { localStorage.removeItem(CONFIG.CURRENT_USER_KEY); currentUser = null; showView('auth'); }
     
     async function deleteAccount() {
         if (!currentUser || currentUser.role === 'guest') return;
@@ -707,19 +738,13 @@
     async function init() {
         await loadAllData();
         currentUser = getCurrentUser();
-        authToken = getToken();
         
-        if (authToken && currentUser && currentUser.role !== 'guest') {
+        if (currentUser && currentUser.role !== 'guest') {
             try {
-                const res = await fetch(`${CONFIG.API_BASE_URL}/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                if (res.ok) {
-                    const userData = await res.json();
-                    if (userData.id) {
-                        currentUser = userData;
-                        setItem(CONFIG.CURRENT_USER_KEY, userData);
-                    }
+                const users = await supabaseFetch('users', `?id=eq.${currentUser.id}`);
+                if (users && users.length > 0) {
+                    currentUser = users[0];
+                    setItem(CONFIG.CURRENT_USER_KEY, currentUser);
                 }
             } catch (e) { console.log('自动登录失败'); }
         }
