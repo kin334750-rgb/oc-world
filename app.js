@@ -105,11 +105,6 @@
             dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], dmMessages: dmMessages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap, ocConnections: ocConnections || [] };
         } catch (e) { console.error('加载失败:', e); dbData.ocs = []; dbData.users = []; dbData.worlds = []; dbData.comments = []; }
     }
-            
-            const settingsMap = {}; (settings || []).forEach(s => settingsMap[s.user_id] = s);
-            dbData = { users: users || [], worlds: worlds || [], ocs: ocs || [], comments: comments || [], favorites: favorites || [], follows: { following: (follows || []).map(f => f.follow_user_id), followers: (follows || []).map(f => f.user_id) }, notifications: notifications || [], messages: messages || [], dmMessages: dmMessages || [], friends: friends || [], reports: reports || [], user_settings: settingsMap };
-        } catch (e) { console.error('加载失败:', e); }
-    }
     
     function formatTime(dateStr) { if (!dateStr) return ''; const diff = new Date() - new Date(dateStr); if (diff < 60000) return '刚刚'; if (diff < 3600000) return Math.floor(diff/60000) + '分钟前'; if (diff < 86400000) return Math.floor(diff/3600000) + '小时前'; return Math.floor(diff/86400000) + '天前'; }
     function escapeHtml(str) { if (!str) return ''; return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
