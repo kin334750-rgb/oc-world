@@ -24,6 +24,12 @@
     function setItem(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
     function genId(prefix) { return prefix + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
     
+    function getAvatar(user) {
+        if (user.avatar) return user.avatar;
+        const name = user.nickname || user.email?.split('@')[0] || '?';
+        return name.charAt(0).toUpperCase();
+    }
+    
     // Supabase REST API 调用
     async function supabaseFetch(table, query = '') {
         const url = `${SUPABASE_URL}/rest/v1/${table}${query}`;
@@ -268,7 +274,7 @@
         if (!currentUser) return;
         const roleText = currentUser.role === 'author' ? '作者' : (currentUser.role === 'guest' ? '游客' : '用户');
         const displayName = currentUser.nickname || currentUser.email?.split('@')[0] || '游客';
-        $$('.user-avatar').forEach(el => { el.textContent = currentUser.avatar || '👤'; });
+        $$('.user-avatar').forEach(el => { el.textContent = getAvatar(currentUser); });
         if ($('dropdown-nickname')) $('dropdown-nickname').textContent = displayName;
         if ($('dropdown-role')) $('dropdown-role').textContent = roleText;
         if ($('create-oc-btn')) $('create-oc-btn').style.display = currentUser.role === 'author' ? 'block' : 'none';
@@ -325,7 +331,7 @@
         $('profile-nickname').textContent = user.nickname || '未设置昵称';
         $('profile-email').textContent = user.email || '未设置邮箱';
         $('profile-role').textContent = user.role === 'author' ? '作者' : '用户';
-        $('profile-avatar').textContent = user.avatar || '👤';
+        $('profile-avatar').textContent = getAvatar(user);
         $('profile-bio').textContent = user.bio || '暂无简介';
         
         const userOCs = dbData.ocs.filter(o => o.author_id === userId);
@@ -386,7 +392,7 @@
         $('author-name').innerHTML = `<span class="clickable-author" onclick="showUserProfile('${currentOC.author_id}')">${escapeHtml(currentOC.author_name)}</span>`;
         const authorOCs = dbData.ocs.filter(o => o.author_id === currentOC.author_id);
         $('author-oc-count').textContent = 'OC: ' + authorOCs.length;
-        $('author-avatar').textContent = author?.avatar || '👤';
+        $('author-avatar').textContent = getAvatar(author);
         
         const isOwner = currentUser && currentUser.id === currentOC.author_id && currentUser.role === 'author';
         const canComment = currentUser && currentUser.role !== 'guest';
@@ -557,11 +563,11 @@
         const myFriends = dbData.friends.filter(f => (f.user_id === currentUser.id || f.friend_id === currentUser.id) && f.status === 'accepted');
         let html = '<h3>我的好友</h3>';
         if (myFriends.length === 0) { html += '<p style="text-align:center;color:#999">暂无好友</p>'; }
-        else { html += '<div class="friends-grid">'; for (const f of myFriends) { const friendId = f.user_id === currentUser.id ? f.friend_id : f.user_id; const friend = dbData.users.find(u => u.id === friendId); if (friend) { const friendOCs = dbData.ocs.filter(o => o.author_id === friendId); html += `<div class="friend-card" data-id="${friend.id}"><div class="friend-avatar clickable" onclick="showUserProfile('${friend.id}')">${friend.avatar || '👤'}</div><div class="friend-info"><div class="friend-name clickable" onclick="showUserProfile('${friend.id}')">${escapeHtml(friend.nickname || friend.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${friendOCs.length}</div></div><div class="friend-actions"><button class="primary-btn" onclick="viewFriendOCs('${friend.id}')">查看OC</button><button class="secondary-btn" onclick="openDMChat('${friend.id}')">💬 私信</button></div></div>`; } } html += '</div>'; }
+        else { html += '<div class="friends-grid">'; for (const f of myFriends) { const friendId = f.user_id === currentUser.id ? f.friend_id : f.user_id; const friend = dbData.users.find(u => u.id === friendId); if (friend) { const friendOCs = dbData.ocs.filter(o => o.author_id === friendId); html += `<div class="friend-card" data-id="${friend.id}"><div class="friend-avatar clickable" onclick="showUserProfile('${friend.id}')">${friend.avatar || getAvatar(friend)}</div><div class="friend-info"><div class="friend-name clickable" onclick="showUserProfile('${friend.id}')">${escapeHtml(friend.nickname || friend.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${friendOCs.length}</div></div><div class="friend-actions"><button class="primary-btn" onclick="viewFriendOCs('${friend.id}')">查看OC</button><button class="secondary-btn" onclick="openDMChat('${friend.id}')">💬 私信</button></div></div>`; } } html += '</div>'; }
         html += '<h3 style="margin-top:20px">我的关注</h3>';
         const following = dbData.users.filter(u => dbData.follows.following.includes(u.id));
         if (following.length === 0) { html += '<p style="text-align:center;color:#999">暂无关注</p>'; }
-        else { html += '<div class="friends-grid">'; for (const u of following) { const ocCount = dbData.ocs.filter(o => o.author_id === u.id).length; html += `<div class="friend-card"><div class="friend-avatar clickable" onclick="showUserProfile('${u.id}')">${u.avatar || '👤'}</div><div class="friend-info"><div class="friend-name clickable" onclick="showUserProfile('${u.id}')">${escapeHtml(u.nickname || u.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${ocCount}</div></div><button class="secondary-btn" onclick="openDMChat('${u.id}')">💬 私信</button></div>`; } html += '</div>'; }
+        else { html += '<div class="friends-grid">'; for (const u of following) { const ocCount = dbData.ocs.filter(o => o.author_id === u.id).length; html += `<div class="friend-card"><div class="friend-avatar clickable" onclick="showUserProfile('${u.id}')">${u.avatar || getAvatar(u)}</div><div class="friend-info"><div class="friend-name clickable" onclick="showUserProfile('${u.id}')">${escapeHtml(u.nickname || u.email?.split('@')[0])}</div><div class="friend-ocs">OC: ${ocCount}</div></div><button class="secondary-btn" onclick="openDMChat('${u.id}')">💬 私信</button></div>`; } html += '</div>'; }
         container.innerHTML = html; showView('friends');
     }
     window.viewFriendOCs = function(friendId) { const friendOCs = dbData.ocs.filter(o => o.author_id === friendId); const grid = $('oc-grid'); grid.innerHTML = friendOCs.length ? friendOCs.map(oc => `<div class="oc-card" data-id="${oc.id}"><div class="oc-card-image">${oc.image?'<img src="'+escapeHtml(oc.image)+'">':'🎭'}</div><div class="oc-card-body"><h3 class="oc-card-name">${escapeHtml(oc.name)}</h3><p class="oc-card-author">作者: ${escapeHtml(oc.author_name)}</p></div></div>`).join('') : '<div class="empty-state"><span>📦</span><p>暂无OC</p></div>'; showView('hall'); };
@@ -588,7 +594,8 @@
             let content = escapeHtml(m.content);
             if (m.type === 'image') content = `<img src="${escapeHtml(m.content)}" style="max-width:200px;border-radius:8px;">`;
             else if (m.type === 'emoji') content = `<span style="font-size:2rem">${escapeHtml(m.content)}</span>`;
-            return `<div class="chat-message ${isOwn ? 'own' : ''}"><div class="chat-avatar clickable" onclick="showUserProfile('${m.sender_id}')">${isOwn ? (currentUser.nickname || '?').charAt(0) : (currentChatFriend.nickname || '?').charAt(0)}</div><div class="chat-content"><div class="chat-name clickable" onclick="showUserProfile('${m.sender_id}')">${isOwn ? (currentUser.nickname || '?') : (currentChatFriend.nickname || '?')}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
+            const sender = dbData.users.find(u => u.id === m.sender_id) || { nickname: m.user_name };
+            return `<div class="chat-message ${isOwn ? 'own' : ''}"><div class="chat-avatar clickable" onclick="showUserProfile('${m.sender_id}')">${getAvatar(sender)}</div><div class="chat-content"><div class="chat-name clickable" onclick="showUserProfile('${m.sender_id}')">${escapeHtml(m.user_name)}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
         }).join('');
         setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
     }
@@ -647,7 +654,8 @@
             let content = escapeHtml(m.content);
             if (m.type === 'image') content = `<img src="${escapeHtml(m.content)}" style="max-width:200px;border-radius:8px;">`;
             else if (m.type === 'emoji') content = `<span style="font-size:2rem">${escapeHtml(m.content)}</span>`;
-            return `<div class="chat-message ${m.user_id === currentUser?.id ? 'own' : ''}"><div class="chat-avatar clickable" onclick="showUserProfile('${m.user_id}')">${m.user_name?.charAt(0) || '👤'}</div><div class="chat-content"><div class="chat-name clickable" onclick="showUserProfile('${m.user_id}')">${escapeHtml(m.user_name)}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
+            const sender = dbData.users.find(u => u.id === m.user_id) || { nickname: m.user_name };
+            return `<div class="chat-message ${m.user_id === currentUser?.id ? 'own' : ''}"><div class="chat-avatar clickable" onclick="showUserProfile('${m.user_id}')">${getAvatar(sender)}</div><div class="chat-content"><div class="chat-name clickable" onclick="showUserProfile('${m.user_id}')">${escapeHtml(m.user_name)}</div><div class="chat-text">${content}</div><div class="chat-time">${formatTime(m.created_at)}</div></div></div>`;
         }).join('');
         setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
     }
@@ -669,7 +677,7 @@
         $('profile-nickname').textContent = currentUser.nickname || currentUser.email?.split('@')[0];
         $('profile-email').textContent = currentUser.email || '游客';
         $('profile-role').textContent = currentUser.role === 'author' ? '作者' : '用户';
-        $('profile-avatar').textContent = currentUser.avatar || '👤';
+        $('profile-avatar').textContent = getAvatar(currentUser);
         $('profile-bio').textContent = currentUser.bio || '暂无简介';
         $('profile-oc-count').textContent = dbData.ocs.filter(o => o.author_id === currentUser.id).length;
         $('profile-fans').textContent = dbData.follows.followers.filter(f => f === currentUser.id).length;
