@@ -136,9 +136,9 @@ app.post('/api/auth/login', async (req, res) => {
     }
     const user = users[0];
     let validPassword = false;
-    try {
+    if (user.password && user.password.startsWith('$2')) {
       validPassword = await bcrypt.compare(password, user.password);
-    } catch(e) {
+    } else {
       validPassword = (password === user.password);
     }
     if (!validPassword) {
