@@ -135,7 +135,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: '邮箱或密码错误' });
     }
     const user = users[0];
-    const validPassword = await bcrypt.compare(password, user.password);
+    let validPassword = false;
+    try {
+      validPassword = await bcrypt.compare(password, user.password);
+    } catch(e) {
+      validPassword = (password === user.password);
+    }
     if (!validPassword) {
       return res.status(401).json({ error: '邮箱或密码错误' });
     }
